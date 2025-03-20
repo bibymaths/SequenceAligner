@@ -1,5 +1,5 @@
 #include <iostream>
-#include <fstream> 
+#include <fstream>
 #include <sstream>
 #include <vector>
 #include <algorithm>
@@ -9,7 +9,46 @@ using namespace std;
 // Constants for scoring
 const int MATCH = 1;
 const int MISMATCH = -1;
-const int GAP = -1;
+const int GAP = -1; 
+const int LINE_WIDTH = 150;
+
+// ANSI color codes
+#define RESET "\033[0m"
+#define GREEN "\033[32m"
+#define RED "\033[31m"
+#define CYAN "\033[36m" 
+ 
+// Function to print sequences with color-coded common codons and base positions
+void printColoredAlignment(const string &seq1, const string &seq2) {
+    size_t length = seq1.size();
+    for (size_t i = 0; i < length; i += LINE_WIDTH) {
+        size_t end = min(i + LINE_WIDTH, length);
+        
+        cout << i + 1 << " - " << end << "\n";
+        
+        for (size_t j = i; j < end; j++) {
+            if (seq1[j] == seq2[j]) {
+                cout << GREEN << seq1[j] << RESET;
+            } else if (seq1[j] == '-' || seq2[j] == '-') {
+                cout << RED << seq1[j] << RESET;
+            } else {
+                cout << CYAN << seq1[j] << RESET;
+            }
+        }
+        cout << "\n";
+
+        for (size_t j = i; j < end; j++) {
+            if (seq1[j] == seq2[j]) {
+                cout << GREEN << seq2[j] << RESET;
+            } else if (seq1[j] == '-' || seq2[j] == '-') {
+                cout << RED << seq2[j] << RESET;
+            } else {
+                cout << CYAN << seq2[j] << RESET;
+            }
+        }
+        cout << "\n\n";
+    }
+}
 
 // Function to read sequence from a file
 string readSequence(const string &filename) {
@@ -99,7 +138,8 @@ void localAlign(const string &x, const string &y) {
     }
     reverse(alignX.begin(), alignX.end());
     reverse(alignY.begin(), alignY.end());
-    cout << "Local Alignment Score: " << maxScore << "\n" << alignX << "\n" << alignY << endl;
+    cout << "Local Alignment Score: " << maxScore << endl; 
+    printColoredAlignment(alignX, alignY);
 } 
 
 
@@ -141,7 +181,8 @@ void globalAlign(const string &x, const string &y) {
     }
     reverse(alignX.begin(), alignX.end());
     reverse(alignY.begin(), alignY.end());
-    cout << "Global Alignment Score: " << dp[m][n] << "\n" << alignX << "\n" << alignY << endl;
+    cout << "Global Alignment Score: " << dp[m][n] << endl; 
+    printColoredAlignment(alignX, alignY);
 }
 
 
@@ -150,8 +191,8 @@ int main() {
         string seq1 = readSequence("seq1.txt");
         string seq2 = readSequence("seq2.txt"); 
          
-        cout << "Sequence 1: " << seq1 << endl;
-        cout << "Sequence 2: " << seq2 << endl;
+        // cout << "Sequence 1: " << seq1 << endl;
+        // cout << "Sequence 2: " << seq2 << endl;
 
         int choice;
         cout << "Select Alignment Method:\n1. LCS\n2. Global\n3. Local\nChoice: ";
