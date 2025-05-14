@@ -1,6 +1,9 @@
 
 # SequenceAligner
 
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg) ![CMake](https://img.shields.io/badge/CMake-≥3.10-blue.svg)
+[![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html) 
+
 A simple and efficient C++ implementation of three classic sequence alignment algorithms:  
 - **Longest Common Subsequence (LCS)**
 - **Global Alignment (Needleman-Wunsch)**
@@ -8,7 +11,9 @@ A simple and efficient C++ implementation of three classic sequence alignment al
 
 The alignments are visualized with colored base-level matches and mismatches for clarity.
 
---- 
+Please refer to [API Documentation](https://bibymaths.github.io/SequenceAligner/api/index.html)
+
+---
 
 ## Project Structure
 
@@ -84,4 +89,5 @@ This project was originally developed in 2014 as part of the *Biological Computa
 
 ## License
 
-This project is licensed under the [BSD 3-Clause License](./LICENSE) © 2025 Abhinav Mishra.
+This project is licensed under the [BSD 3-Clause License](./LICENSE)  
+© 2025 Abhinav Mishra.

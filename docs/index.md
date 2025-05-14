@@ -1,5 +1,9 @@
 # SequenceAligner Documentation
 
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg) ![CMake](https://img.shields.io/badge/CMake-≥3.10-blue.svg)
+
+[![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html)
+
 ## Overview
 
 SequenceAligner is a lightweight C++ tool designed for the comparative alignment of biological sequences. It supports three classic algorithms:
@@ -27,3 +31,5 @@ Where:
   * `3`: Local
 
 ---
+
+Please refer to [API Documentation](https://bibymaths.github.io/SequenceAligner/api/index.html)
