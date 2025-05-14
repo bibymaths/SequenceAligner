@@ -47,11 +47,64 @@ Please refer to [API Documentation](https://bibymaths.github.io/SequenceAligner/
 
 ---
 
-Each version implements the same interface. Choose the appropriate binary based on the features or optimizations you want to test.
+### Installing OpenMPI for v2 and v3
+
+#### Fedora
+
+To use OpenMPI compilers (`mpicc`, `mpic++`, etc.) and `mpirun` on Fedora:
+
+1. **Install OpenMPI and development headers**:
+
+   ```bash
+   sudo dnf install openmpi openmpi-devel
+   ```
+
+2. **Enable environment modules**:
+
+   ```bash
+   source /etc/profile.d/modules.sh
+   ```
+
+3. **Load the OpenMPI module**:
+
+   ```bash
+   module load mpi/openmpi-x86_64
+   ```
+
+4. **Persistent setup** (optional): Add the above two lines to your `~/.bashrc` to avoid repeating them in each session.
+
+Reference: [OpenMPI on Fedora](https://brandonrozek.com/blog/openmpi-fedora/)
+
+---
+
+#### Debian / Ubuntu
+
+Install OpenMPI and development files with:
+
+```bash
+sudo apt install libopenmpi-dev
+```
+
+---
+
+#### macOS (Homebrew)
+
+Install using Homebrew:
+
+```bash
+brew install openmpi
+```
+
+---
+
+For official documentation, see:
+[OpenMPI Quickstart Guide](https://docs.open-mpi.org/en/v5.0.x/installing-open-mpi/quickstart.html)
 
 ---
 
 ### Build Instructions
+ 
+Each version implements the same interface. Choose the appropriate binary based on the features or optimizations you want to test. 
 
 ```bash
 git clone https://github.com/yourusername/SequenceAligner.git
