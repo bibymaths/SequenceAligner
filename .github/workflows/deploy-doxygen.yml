@@ -1,0 +1,29 @@
+name: Deploy Doxygen to GitHub Pages (API)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Doxygen
+        run: sudo apt-get install -y doxygen
+
+      - name: Generate Doxygen docs
+        run: doxygen Doxyfile
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./doxygen/html
+          destination_dir: api
+          keep_files: true
