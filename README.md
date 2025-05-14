@@ -10,11 +10,6 @@ The alignments are visualized with colored base-level matches and mismatches for
 
 --- 
 
-## API Documentation
-
-The full API reference is available [here](https://bibymaths.github.io/SequenceAligner/api/index.html).
---- 
-
 ## Project Structure
 
 ```
