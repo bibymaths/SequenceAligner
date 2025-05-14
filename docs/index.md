@@ -28,4 +28,4 @@ Where:
 
 ---
 
-For complete API documentation, see [API Reference](https://bibymaths.github.io/SequenceAligner/docs/api/html/index.html).
+For complete API documentation, see [API Reference](https://github.com/bibymaths/SequenceAligner/docs/api/html/index.html).
