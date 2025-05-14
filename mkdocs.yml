@@ -14,7 +14,7 @@ theme:
 
 nav:
   - Home: index.md
-  - API Reference: api/index.html
+  - API Reference: api/html/index.html
   - Theoretical Background: processes.md
   - Output: outputs.md
   - About: about.md
