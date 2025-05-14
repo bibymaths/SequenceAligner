@@ -1,31 +1,51 @@
+/**
+ * @file main.cpp
+ * @brief Implements LCS, Global, and Local alignment for DNA sequences with colored output.
+ * @author Abhinav Mishra
+ * @date 2025
+ */
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
+#include <cstdlib>
 using namespace std;
 
-// Constants for scoring
+/// Match score for alignment
 const int MATCH = 1;
+/// Mismatch penalty for alignment
 const int MISMATCH = -1;
-const int GAP = -1; 
+/// Gap penalty for alignment
+const int GAP = -1;
+/// Width of output lines for formatted alignment printing
 const int LINE_WIDTH = 150;
 
-// ANSI color codes
+/// ANSI escape codes for colored output
 #define RESET "\033[0m"
 #define GREEN "\033[32m"
 #define RED "\033[31m"
-#define CYAN "\033[36m" 
- 
-// Function to print sequences with color-coded common codons and base positions
+#define CYAN "\033[36m"
+
+
+/**
+ * @brief Print aligned sequences with color-coded differences.
+ *
+ * Matching characters are printed in green, mismatches in cyan,
+ * and gaps in red. Outputs the sequences in aligned block format.
+ *
+ * @param seq1 First aligned sequence (may include gaps).
+ * @param seq2 Second aligned sequence (may include gaps).
+ */
 void printColoredAlignment(const string &seq1, const string &seq2) {
     size_t length = seq1.size();
     for (size_t i = 0; i < length; i += LINE_WIDTH) {
         size_t end = min(i + LINE_WIDTH, length);
-        
+
         cout << i + 1 << " - " << end << "\n";
-        
+
         for (size_t j = i; j < end; j++) {
             if (seq1[j] == seq2[j]) {
                 cout << GREEN << seq1[j] << RESET;
@@ -50,21 +70,40 @@ void printColoredAlignment(const string &seq1, const string &seq2) {
     }
 }
 
-// Function to read sequence from a file
+/**
+ * @brief Reads a sequence from a FASTA file, skipping headers.
+ *
+ * @param filename Path to the input FASTA file.
+ * @return string Concatenated sequence (no newlines or headers).
+ * @throws runtime_error if the file cannot be opened.
+ */
 string readSequence(const string &filename) {
     ifstream file(filename);
     if (!file) {
         throw runtime_error("Error: Unable to open " + filename);
     }
-    stringstream buffer;
-    buffer << file.rdbuf();
-    string sequence = buffer.str();
-    sequence.erase(remove(sequence.begin(), sequence.end(), '\n'), sequence.end());
+
+    string line, sequence;
+    while (getline(file, line)) {
+        if (line.empty() || line[0] == '>') continue; // Skip FASTA headers
+        sequence += line;
+    }
+
+    // Remove carriage returns in case of Windows-formatted files
     sequence.erase(remove(sequence.begin(), sequence.end(), '\r'), sequence.end());
+
     return sequence;
 }
- 
-// Function to perform Longest Common Subsequence (LCS) alignment
+
+
+/**
+ * @brief Perform Longest Common Subsequence (LCS) alignment.
+ *
+ * Prints the LCS length and the LCS string.
+ *
+ * @param x First input sequence.
+ * @param y Second input sequence.
+ */
 void lcs(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     vector<vector<int>> c(m + 1, vector<int>(n + 1, 0));
@@ -101,7 +140,14 @@ void lcs(const string &x, const string &y) {
     cout << "LCS length: " << c[m][n] << "\nLCS: " << lcs_str << endl;
 }
 
-// Function to perform Local Alignment
+/**
+ * @brief Perform Local Alignment using Smith-Waterman algorithm.
+ *
+ * Finds the best local alignment and prints colored alignment and score.
+ *
+ * @param x First input sequence.
+ * @param y Second input sequence.
+ */
 void localAlign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     vector<vector<int>> dp(m + 1, vector<int>(n + 1, 0));
@@ -138,12 +184,19 @@ void localAlign(const string &x, const string &y) {
     }
     reverse(alignX.begin(), alignX.end());
     reverse(alignY.begin(), alignY.end());
-    cout << "Local Alignment Score: " << maxScore << endl; 
+    cout << "Local Alignment Score: " << maxScore << endl;
     printColoredAlignment(alignX, alignY);
-} 
+}
 
 
-// Function to perform Global Alignment
+/**
+ * @brief Perform Global Alignment using Needleman-Wunsch algorithm.
+ *
+ * Finds the best global alignment and prints colored alignment and score.
+ *
+ * @param x First input sequence.
+ * @param y Second input sequence.
+ */
 void globalAlign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     vector<vector<int>> dp(m + 1, vector<int>(n + 1, 0));
@@ -181,28 +234,39 @@ void globalAlign(const string &x, const string &y) {
     }
     reverse(alignX.begin(), alignX.end());
     reverse(alignY.begin(), alignY.end());
-    cout << "Global Alignment Score: " << dp[m][n] << endl; 
+    cout << "Global Alignment Score: " << dp[m][n] << endl;
     printColoredAlignment(alignX, alignY);
 }
 
-
-int main() {
+/**
+ * @brief Main entry point. Parses arguments and selects alignment strategy.
+ *
+ * Usage: `./aligner <seq1_file> <seq2_file> <choice>`
+ * Choice values:
+ * - `1` = LCS
+ * - `2` = Global alignment
+ * - `3` = Local alignment
+ *
+ * @param argc Argument count.
+ * @param argv Argument values.
+ * @return int Exit status.
+ */
+int main(int argc, char* argv[]) {
     try {
-        string seq1 = readSequence("seq1.txt");
-        string seq2 = readSequence("seq2.txt"); 
-         
-        // cout << "Sequence 1: " << seq1 << endl;
-        // cout << "Sequence 2: " << seq2 << endl;
+        if (argc != 4) {
+            cerr << "Usage: " << argv[0] << " <seq1_file> <seq2_file> <choice (1=LCS, 2=Global, 3=Local)>" << endl;
+            return 1;
+        }
 
-        int choice;
-        cout << "Select Alignment Method:\n1. LCS\n2. Global\n3. Local\nChoice: ";
-        cin >> choice;
+        string seq1 = readSequence(argv[1]);
+        string seq2 = readSequence(argv[2]);
+        int choice = stoi(argv[3]);
 
         switch (choice) {
             case 1: lcs(seq1, seq2); break;
             case 2: globalAlign(seq1, seq2); break;
             case 3: localAlign(seq1, seq2); break;
-            default: cout << "Invalid choice!" << endl;
+            default: cout << "Invalid choice! Use 1 (LCS), 2 (Global), or 3 (Local)." << endl;
         }
     } catch (const exception &e) {
         cerr << e.what() << endl;

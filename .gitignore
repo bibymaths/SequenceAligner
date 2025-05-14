@@ -1,8 +1,11 @@
 # Prerequisites
 *.d
 
+# Build directories
+build/
+
 # Compiled Object files
-*.slo
+*.slomake
 *.lo
 *.o
 *.obj
