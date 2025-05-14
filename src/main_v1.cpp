@@ -1,3 +1,10 @@
+/**
+ * @file main.cpp
+ * @brief Implements LCS, Global, and Local alignment for DNA sequences with colored output.
+ * @author Abhinav Mishra
+ * @date 2025
+ */
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -7,19 +14,31 @@
 #include <cstdlib>
 using namespace std;
 
-// Constants for scoring
+/// Match score for alignment
 const int MATCH = 1;
+/// Mismatch penalty for alignment
 const int MISMATCH = -1;
+/// Gap penalty for alignment
 const int GAP = -1;
+/// Width of output lines for formatted alignment printing
 const int LINE_WIDTH = 150;
 
-// ANSI color codes
+/// ANSI escape codes for colored output
 #define RESET "\033[0m"
 #define GREEN "\033[32m"
 #define RED "\033[31m"
 #define CYAN "\033[36m"
 
-// Function to print sequences with color-coded common codons and base positions
+
+/**
+ * @brief Print aligned sequences with color-coded differences.
+ *
+ * Matching characters are printed in green, mismatches in cyan,
+ * and gaps in red. Outputs the sequences in aligned block format.
+ *
+ * @param seq1 First aligned sequence (may include gaps).
+ * @param seq2 Second aligned sequence (may include gaps).
+ */
 void printColoredAlignment(const string &seq1, const string &seq2) {
     size_t length = seq1.size();
     for (size_t i = 0; i < length; i += LINE_WIDTH) {
@@ -51,7 +70,13 @@ void printColoredAlignment(const string &seq1, const string &seq2) {
     }
 }
 
-// Function to read sequence from a file
+/**
+ * @brief Reads a sequence from a FASTA file, skipping headers.
+ *
+ * @param filename Path to the input FASTA file.
+ * @return string Concatenated sequence (no newlines or headers).
+ * @throws runtime_error if the file cannot be opened.
+ */
 string readSequence(const string &filename) {
     ifstream file(filename);
     if (!file) {
@@ -71,7 +96,14 @@ string readSequence(const string &filename) {
 }
 
 
-// Function to perform Longest Common Subsequence (LCS) alignment
+/**
+ * @brief Perform Longest Common Subsequence (LCS) alignment.
+ *
+ * Prints the LCS length and the LCS string.
+ *
+ * @param x First input sequence.
+ * @param y Second input sequence.
+ */
 void lcs(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     vector<vector<int>> c(m + 1, vector<int>(n + 1, 0));
@@ -108,7 +140,14 @@ void lcs(const string &x, const string &y) {
     cout << "LCS length: " << c[m][n] << "\nLCS: " << lcs_str << endl;
 }
 
-// Function to perform Local Alignment
+/**
+ * @brief Perform Local Alignment using Smith-Waterman algorithm.
+ *
+ * Finds the best local alignment and prints colored alignment and score.
+ *
+ * @param x First input sequence.
+ * @param y Second input sequence.
+ */
 void localAlign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     vector<vector<int>> dp(m + 1, vector<int>(n + 1, 0));
@@ -150,7 +189,14 @@ void localAlign(const string &x, const string &y) {
 }
 
 
-// Function to perform Global Alignment
+/**
+ * @brief Perform Global Alignment using Needleman-Wunsch algorithm.
+ *
+ * Finds the best global alignment and prints colored alignment and score.
+ *
+ * @param x First input sequence.
+ * @param y Second input sequence.
+ */
 void globalAlign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     vector<vector<int>> dp(m + 1, vector<int>(n + 1, 0));
@@ -192,7 +238,19 @@ void globalAlign(const string &x, const string &y) {
     printColoredAlignment(alignX, alignY);
 }
 
-
+/**
+ * @brief Main entry point. Parses arguments and selects alignment strategy.
+ *
+ * Usage: `./aligner <seq1_file> <seq2_file> <choice>`
+ * Choice values:
+ * - `1` = LCS
+ * - `2` = Global alignment
+ * - `3` = Local alignment
+ *
+ * @param argc Argument count.
+ * @param argv Argument values.
+ * @return int Exit status.
+ */
 int main(int argc, char* argv[]) {
     try {
         if (argc != 4) {

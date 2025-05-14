@@ -8,7 +8,12 @@ A simple and efficient C++ implementation of three classic sequence alignment al
 
 The alignments are visualized with colored base-level matches and mismatches for clarity.
 
----
+--- 
+
+## API Documentation
+
+The full API reference is available [here](api/html/index.html).
+--- 
 
 ## Project Structure
 
