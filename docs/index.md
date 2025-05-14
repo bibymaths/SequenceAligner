@@ -18,7 +18,7 @@ This tool is optimized for command-line use with FASTA inputs and outputs colorf
 ## Command-Line Usage
 
 ```bash
-./aligner_v1 files/seq1.fasta files/seq2.fasta 2
+./aligner ../files/seq1.fasta ../files/seq2.fasta {1,2,3}
 ```
 
 Where:
@@ -27,9 +27,9 @@ Where:
 * Second argument is the path to the second FASTA file.
 * Third argument is the alignment type:
 
-  * `1`: LCS
-  * `2`: Global
-  * `3`: Local
+  * `1`: Global
+  * `2`: Local
+  * `3`: LCS
 
 ---
 

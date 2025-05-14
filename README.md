@@ -30,9 +30,7 @@ Please refer to [API Documentation](https://bibymaths.github.io/SequenceAligner/
 ├── LICENSE      
 ├── README.md        
 └── src/            
-├── main\_v1.cpp   
-├── main\_v2.cpp            # (Optional) experimental version
-└── main\_v3.cpp            # (Optional) experimental version
+├── main.cpp   
 
 ````
 
@@ -69,7 +67,9 @@ To use OpenMPI compilers (`mpicc`, `mpic++`, etc.) and `mpirun` on Fedora:
 
    ```bash
    module load mpi/openmpi-x86_64
-   ```
+   ``` 
+   
+*NOTE*: **Sometimes, you need to run the above command before cmake and make commands.**
 
 4. **Persistent setup** (optional): Add the above two lines to your `~/.bashrc` to avoid repeating them in each session.
 
@@ -114,18 +114,16 @@ cmake ..
 make
 ```
 
-This will compile **three executables**:
+This will compile an executable named `aligner` in the `build` directory:
 
-* `aligner_v1` → builds from `src/main_v1.cpp`
-* `aligner_v2` → builds from `src/main_v2.cpp`
-* `aligner_v3` → builds from `src/main_v3.cpp`
+* `aligner` → builds from `src/main.cpp`
 
 ---
 
 ### Usage
 
 ```bash
-./aligner_v1 <seq1.fasta> <seq2.fasta> <choice>
+./aligner <seq1.fasta> <seq2.fasta> <choice>
 ```
 
 ---

@@ -181,21 +181,3 @@ Where $m = |X|$, $n = |Y|$
 
 ---
 
-## Code Structure
-
-### Core Files:
-
-* `main_v1.cpp`: First version with basic alignment logic.
-* `main_v2.cpp`: Optimized or modular version.
-* `main_v3.cpp`: Experimental or extended version.
-
-### Key Functions:
-
-* `readSequence()`: Reads and cleans up a FASTA file.
-* `printColoredAlignment()`: Formats aligned sequences with ANSI coloring.
-* `lcs()`: Implements LCS algorithm.
-* `globalAlign()`: Implements Needleman-Wunsch global alignment.
-* `localAlign()`: Implements Smith-Waterman local alignment.
-
----
-

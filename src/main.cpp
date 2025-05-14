@@ -39,7 +39,6 @@ void showProgressBar(int progress, int total) {
     cout.flush();
 }
 
-
 // Process a FASTA file, extracting the first header (without '>') and the sequence.
 void processFasta(const string &filename, string &header, string &sequence) {
     ifstream file(filename);
@@ -94,51 +93,83 @@ void printColoredAlignment(const string &seq1, const string &seq2, ostream &os =
     }
 }
 
-void simdGlobalAlign(const string &x, const string &y) {
+void globalalign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
-    vector<vector<int>> dp(m + 1, vector<int>(n + 1, 0));
-    vector<vector<char>> traceback(m + 1, vector<char>(n + 1, ' '));
 
-    // Initialize first row and column (gap penalties)
-    for (int i = 0; i <= m; i++) dp[i][0] = i * GAP;
-    for (int j = 0; j <= n; j++) dp[0][j] = j * GAP;
+    vector<int> prev_row(n + 1, 0);
+    vector<int> curr_row(n + 1, 0);
+    vector<char> prev_trace(n + 1, '0');
+    vector<char> curr_trace(n + 1, '0');
 
-    // Fill DP table using AVX2 vectorized operations
+    for (int j = 0; j <= n; ++j) {
+        prev_row[j] = j * GAP;
+        prev_trace[j] = 'l';
+    }
+
     for (int i = 1; i <= m; i++) {
-        #pragma omp parallel for
-        for (int j = 1; j <= n; j += 8) {
-            __m256i v_left = _mm256_loadu_si256((__m256i*)&dp[i][j - 1]);
-            __m256i v_up = _mm256_loadu_si256((__m256i*)&dp[i - 1][j]);
-            __m256i v_diag = _mm256_loadu_si256((__m256i*)&dp[i - 1][j - 1]);
+        curr_row[0] = i * GAP;
+        curr_trace[0] = 'u';
 
-            __m256i v_match = _mm256_set1_epi32(x[i - 1] == y[j - 1] ? MATCH : MISMATCH);
-            __m256i v_gap = _mm256_set1_epi32(GAP);
+        for (int j = 1; j <= n; j++) {
+            int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
 
-            __m256i v_matchResult = _mm256_add_epi32(v_diag, v_match);
-            __m256i v_gapLeft = _mm256_add_epi32(v_left, v_gap);
-            __m256i v_gapUp = _mm256_add_epi32(v_up, v_gap);
+            int diag = prev_row[j - 1] + matchScore;
+            int up = prev_row[j] + GAP;
+            int left = curr_row[j - 1] + GAP;
 
-            __m256i v_result = _mm256_max_epi32(v_matchResult, v_gapLeft);
-            v_result = _mm256_max_epi32(v_result, v_gapUp);
+            int score = max({diag, up, left});
+            curr_row[j] = score;
 
-            _mm256_storeu_si256((__m256i*)&dp[i][j], v_result);
+            if (score == diag) curr_trace[j] = 'd';
+            else if (score == up) curr_trace[j] = 'u';
+            else curr_trace[j] = 'l';
         }
 
-        // Update progress bar every 1000 rows or on the last row.
+        prev_row.swap(curr_row);
+        prev_trace.swap(curr_trace);
+
         if (i % 1000 == 0 || i == m) {
             showProgressBar(i, m);
         }
     }
 
-    // Traceback to reconstruct alignment.
+    // Traceback
     string alignedX, alignedY;
     int i = m, j = n;
+    vector<char> *curr_trace_ptr = &prev_trace, *prev_trace_ptr = &curr_trace;
+
+    // Recompute rows during traceback
     while (i > 0 || j > 0) {
-        if (i > 0 && j > 0 && dp[i][j] == dp[i - 1][j - 1] + (x[i - 1] == y[j - 1] ? MATCH : MISMATCH)) {
+        if (i == 0) {
+            alignedX += '-';
+            alignedY += y[--j];
+            continue;
+        }
+        if (j == 0) {
+            alignedX += x[--i];
+            alignedY += '-';
+            continue;
+        }
+
+        int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
+
+        int diag = prev_row[j - 1] + matchScore;
+        int up = prev_row[j] + GAP;
+        int left = curr_row[j - 1] + GAP;
+
+        int score = max({diag, up, left});
+        curr_row[j] = score;
+
+        char move;
+        if (score == diag) move = 'd';
+        else if (score == up) move = 'u';
+        else move = 'l';
+
+        if (move == 'd') {
             alignedX += x[i - 1];
             alignedY += y[j - 1];
             i--; j--;
-        } else if (i > 0 && dp[i][j] == dp[i - 1][j] + GAP) {
+        } else if (move == 'u') {
             alignedX += x[i - 1];
             alignedY += '-';
             i--;
@@ -147,22 +178,25 @@ void simdGlobalAlign(const string &x, const string &y) {
             alignedY += y[j - 1];
             j--;
         }
+
+        // recompute rows for the next traceback step
+        swap(prev_row, curr_row);
     }
+
     reverse(alignedX.begin(), alignedX.end());
     reverse(alignedY.begin(), alignedY.end());
 
-    cout << "\nGlobal Alignment Score: " << dp[m][n] << endl;
+    cout << "\nGlobal Alignment Score: " << prev_row[n] << endl;
     printColoredAlignment(alignedX, alignedY);
 
-    // Save colored alignment to a file.
     ofstream outfile("alignment.txt");
-    if (!outfile) {
-        cerr << "Error: Unable to open output file alignment.txt" << endl;
-    } else {
-        outfile << "\nGlobal Alignment Score: " << dp[m][n] << "\n\n";
+    if (outfile) {
+        outfile << "Global Alignment Score: " << prev_row[n] << "\n\n";
         printColoredAlignment(alignedX, alignedY, outfile);
         outfile.close();
-        cout << "\nAlignment saved to alignment.txt" << endl;
+        cout << "\nAlignment saved to alignment.txt\n";
+    } else {
+        cerr << "Error: Unable to open output file alignment.txt\n";
     }
 }
 
@@ -280,161 +314,206 @@ void handleTracebackRequest(int chunkStart, int dpStart,
   Advanced MPI Local Alignment with Recursive Multi-Chunk Traceback.
   (The DP and traceback arrays are computed with an extra overlap region.)
 */
-void mpiLocalAlign(const string &x, const string &y) {
+void localalign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    const int overlap = 500; // Adjust based on expected alignment length
-
+    // split rows of x across ranks
     int chunkSize = (m + size - 1) / size;
-    int chunkStart = rank * chunkSize;
-    int chunkEnd = min(chunkStart + chunkSize, m);
-    int localRows = chunkEnd - chunkStart;
+    int start    = rank * chunkSize;
+    int end      = min(start + chunkSize, m);
+    int localRows = end - start;
 
-    int effectiveRows = localRows;
-    if (rank > 0) effectiveRows += overlap;
+    // allocate local DP table (rows 0..localRows) × (cols 0..n)
+    vector<vector<int>> dp(localRows+1, vector<int>(n+1, 0));
 
-    vector<int> dp((effectiveRows + 1) * (n + 1), 0);
-    vector<char> trace((effectiveRows + 1) * (n + 1), '0');
-
-    auto local_idx = [n](int i, int j) -> int {
-        return i * (n + 1) + j;
-    };
-
+    // receive the “row 0” from previous rank if any
     if (rank > 0) {
-        int rowsToRecv = min(overlap, chunkSize);
-        MPI_Recv(&dp[local_idx(0, 0)], (rowsToRecv + 1) * (n + 1), MPI_INT, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (int i = 0; i <= rowsToRecv; i++) {
-            for (int j = 0; j <= n; j++) {
-                trace[local_idx(i, j)] = 'x';
+        MPI_Recv(dp[0].data(), n+1, MPI_INT, rank-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+
+    // fill local table and track the best cell
+    int local_maxScore = 0, local_maxI = 0, local_maxJ = 0;
+    for (int i = 1; i <= localRows; ++i) {
+        int gi = start + i - 1;              // global index in x
+        for (int j = 1; j <= n; ++j) {
+            int ms = (x[gi] == y[j-1]) ? MATCH : MISMATCH;
+            dp[i][j] = max({ 0,
+                             dp[i-1][j-1] + ms,
+                             dp[i-1][j]   + GAP,
+                             dp[i][j-1]   + GAP });
+            if (dp[i][j] > local_maxScore) {
+                local_maxScore = dp[i][j];
+                local_maxI     = gi;   // store global row
+                local_maxJ     = j;
             }
-        }
-    } else {
-        for (int j = 0; j <= n; j++) {
-            dp[local_idx(0, j)] = 0;
-            trace[local_idx(0, j)] = '0';
         }
     }
 
-    int dpStart = (rank > 0) ? overlap + 1 : 1;
-    int dpRows = dpStart - 1 + localRows;
-
-    int local_maxScore = 0, local_maxRow = 0, local_maxCol = 0;
-    for (int i = dpStart; i <= dpRows; i++) {
-        int global_i = chunkStart + i - dpStart;
-        dp[local_idx(i, 0)] = 0;
-        trace[local_idx(i, 0)] = '0';
-        for (int j = 1; j <= n; j++) {
-            int matchScore = (x[global_i] == y[j - 1]) ? MATCH : MISMATCH;
-            int score_diag = dp[local_idx(i - 1, j - 1)] + matchScore;
-            int score_up   = dp[local_idx(i - 1, j)] + GAP;
-            int score_left = dp[local_idx(i, j - 1)] + GAP;
-            int score = 0;
-            char direction = '0';
-            if (score_diag > 0 || score_up > 0 || score_left > 0) {
-                score = score_diag;
-                direction = 'd';
-                if (score_up > score)   { score = score_up;   direction = 'u'; }
-                if (score_left > score) { score = score_left; direction = 'l'; }
-                if (score < 0) { score = 0; direction = '0'; }
-            }
-            dp[local_idx(i, j)] = score;
-            trace[local_idx(i, j)] = direction;
-            if (score > local_maxScore) {
-                local_maxScore = score;
-                local_maxRow = i;
-                local_maxCol = j;
-            }
-        }
-        // (Optional) update progress bar on rank 0.
+    // pass our last row down to the next rank
+    if (rank+1 < size) {
+        MPI_Send(dp[localRows].data(), n+1, MPI_INT, rank+1, 0, MPI_COMM_WORLD);
     }
 
-    if (rank < size - 1) {
-        MPI_Send(&dp[local_idx(dpRows, 0)], n + 1, MPI_INT, rank + 1, 0, MPI_COMM_WORLD);
-    }
+    // gather (score, rank, I, J) on rank 0
+    struct Loc { int score, rank, I, J; };
+    Loc mine{ local_maxScore, rank, local_maxI, local_maxJ };
+    vector<Loc> all;
+    if (rank == 0) all.resize(size);
+    MPI_Gather(&mine, sizeof(Loc)/sizeof(int), MPI_INT,
+               all.data(), sizeof(Loc)/sizeof(int), MPI_INT,
+               0, MPI_COMM_WORLD);
 
-    int local_data[3] = { local_maxScore, chunkStart + local_maxRow - dpStart, local_maxCol };
-    int *gathered = nullptr;
-    if (rank == 0)
-        gathered = new int[3 * size];
-    MPI_Gather(local_data, 3, MPI_INT, gathered, 3, MPI_INT, 0, MPI_COMM_WORLD);
-
-    int global_maxScore = 0, winnerRank = 0, winner_global_i = 0, winner_j = 0;
+    // pick the true best on rank 0
+    int bestScore=0, bestRank=0, bestI=0, bestJ=0;
     if (rank == 0) {
-        for (int r = 0; r < size; r++) {
-            int score = gathered[3 * r];
-            if (score > global_maxScore) {
-                global_maxScore = score;
-                winnerRank = r;
-                winner_global_i = gathered[3 * r + 1];
-                winner_j = gathered[3 * r + 2];
+        for (auto &c : all) {
+            if (c.score > bestScore) {
+                bestScore = c.score;
+                bestRank  = c.rank;
+                bestI     = c.I;
+                bestJ     = c.J;
             }
         }
-        delete[] gathered;
     }
-    MPI_Bcast(&winnerRank, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    // broadcast the winner info to everyone
+    MPI_Bcast(&bestScore, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&bestRank,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&bestI,     1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&bestJ,     1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // now only the winning rank does the traceback
     string alignedX, alignedY;
-    if (rank == winnerRank) {
-        TracebackResult res = recursiveTraceback(winner_global_i, winner_j, rank, dpStart, chunkStart, dp, trace, n, x, y);
-        alignedX = res.alignedX;
-        alignedY = res.alignedY;
-    }
-
-    double startTime = MPI_Wtime();
-    while (MPI_Wtime() - startTime < 1.0) {
-        int flag = 0;
-        MPI_Iprobe(MPI_ANY_SOURCE, TRACEBACK_REQ_TAG, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
-        if (flag) {
-            handleTracebackRequest(chunkStart, dpStart, dp, trace, n, x, y, rank);
+    if (rank == bestRank) {
+        // map global bestI back into our local table row index
+        int local_i = bestI - start + 1;
+        int j       = bestJ;
+        while (local_i > 0 && j > 0 && dp[local_i][j] > 0) {
+            int cur = dp[local_i][j];
+            int gi  = start + local_i - 1;
+            int ms  = (x[gi] == y[j-1]) ? MATCH : MISMATCH;
+            if (local_i>0 && j>0 && cur == dp[local_i-1][j-1] + ms) {
+                alignedX.push_back(x[gi]);
+                alignedY.push_back(y[j-1]);
+                --local_i; --j;
+            } else if (local_i>0 && cur == dp[local_i-1][j] + GAP) {
+                alignedX.push_back(x[gi]);
+                alignedY.push_back('-');
+                --local_i;
+            } else {
+                alignedX.push_back('-');
+                alignedY.push_back(y[j-1]);
+                --j;
+            }
         }
+        reverse(alignedX.begin(), alignedX.end());
+        reverse(alignedY.begin(), alignedY.end());
     }
 
-    if (rank == winnerRank && rank != 0) {
+    // send the two strings back to rank 0 if needed
+    if (rank == bestRank && rank != 0) {
         int lenX = alignedX.size(), lenY = alignedY.size();
-        MPI_Send(&lenX, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(alignedX.c_str(), lenX, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(&lenY, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(alignedY.c_str(), lenY, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
-    } else if (rank == 0 && winnerRank != 0) {
-        int lenX, lenY;
-        MPI_Recv(&lenX, 1, MPI_INT, winnerRank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        char *bufX = new char[lenX + 1];
-        MPI_Recv(bufX, lenX, MPI_CHAR, winnerRank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        bufX[lenX] = '\0';
-        MPI_Recv(&lenY, 1, MPI_INT, winnerRank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        char *bufY = new char[lenY + 1];
-        MPI_Recv(bufY, lenY, MPI_CHAR, winnerRank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        bufY[lenY] = '\0';
-        alignedX = string(bufX);
-        alignedY = string(bufY);
-        delete[] bufX; delete[] bufY;
+        MPI_Send(&lenX, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+        MPI_Send(alignedX.data(), lenX, MPI_CHAR, 0, 2, MPI_COMM_WORLD);
+        MPI_Send(&lenY, 1, MPI_INT, 0, 3, MPI_COMM_WORLD);
+        MPI_Send(alignedY.data(), lenY, MPI_CHAR, 0, 4, MPI_COMM_WORLD);
+    } else if (rank == 0) {
+        // rank 0 may need to receive from bestRank
+        if (bestRank != 0) {
+            int lenX, lenY;
+            MPI_Recv(&lenX, 1, MPI_INT, bestRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            alignedX.resize(lenX);
+            MPI_Recv(alignedX.data(), lenX, MPI_CHAR, bestRank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&lenY, 1, MPI_INT, bestRank, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            alignedY.resize(lenY);
+            MPI_Recv(alignedY.data(), lenY, MPI_CHAR, bestRank, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        // finally, print
+        cout << "\nLocal Alignment Score: " << bestScore << "\n";
+        printColoredAlignment(alignedX, alignedY);
+    }
+}
+
+
+void lcs(const string &x, const string &y) {
+    const int m = x.size(), n = y.size();
+    vector<int> prev(n + 1, 0), curr(n + 1, 0);
+    vector<vector<char>> b(m + 1, vector<char>(n + 1, ' '));
+
+    const int blockSize = 32;  // For AVX2 (256 bits = 32 bytes)
+    const int j_limit = n - (n % blockSize);
+
+    #pragma omp parallel
+    {
+        vector<int> tmp(blockSize);
+
+        for (int i = 1; i <= m; ++i) {
+            #pragma omp for schedule(static)
+            for (int j = 1; j <= j_limit; j += blockSize) {
+                __m256i vx = _mm256_set1_epi8(x[i - 1]);
+                __m256i vy = _mm256_loadu_si256((__m256i const*)(y.data() + j - 1));
+                __m256i eq = _mm256_cmpeq_epi8(vx, vy);
+                _mm256_storeu_si256((__m256i*)tmp.data(), eq);
+
+                for (int k = 0; k < blockSize; ++k) {
+                    int jj = j + k;
+                    if (jj > n) break;
+
+                    if (tmp[k] == -1) {  // true from AVX2 comparison (all bits set)
+                        curr[jj] = prev[jj - 1] + 1;
+                        b[i][jj] = 'D';
+                    } else if (prev[jj] >= curr[jj - 1]) {
+                        curr[jj] = prev[jj];
+                        b[i][jj] = 'U';
+                    } else {
+                        curr[jj] = curr[jj - 1];
+                        b[i][jj] = 'L';
+                    }
+                }
+            }
+
+            // Fallback for remainder (non-AVX2-aligned)
+            #pragma omp for schedule(static)
+            for (int j = j_limit + 1; j <= n; ++j) {
+                if (x[i - 1] == y[j - 1]) {
+                    curr[j] = prev[j - 1] + 1;
+                    b[i][j] = 'D';
+                } else if (prev[j] >= curr[j - 1]) {
+                    curr[j] = prev[j];
+                    b[i][j] = 'U';
+                } else {
+                    curr[j] = curr[j - 1];
+                    b[i][j] = 'L';
+                }
+            }
+
+            #pragma omp single
+            {
+                swap(prev, curr);
+                if (i % 1000 == 0 || i == m)
+                    showProgressBar(i, m);
+            }
+        }
     }
 
-    if (rank == 0) {
-        // Save colored alignment to a file.
-        ofstream outfile("alignment.txt");
-        if (!outfile) {
-            cerr << "Error: Unable to open output file alignment.txt" << endl;
-        }
-        outfile << "Local Alignment Score: " << global_maxScore << "\n\n";
-        // Optionally, you can also output FASTA header information here if needed.
-        outfile << "Aligned X: " << alignedX << "\n\n";
-        outfile << "Aligned Y: " << alignedY << "\n\n";
-        // Print the colored alignment (with ANSI codes) into the file.
-        printColoredAlignment(alignedX, alignedY, outfile);
-        outfile.close();
-
-        cout << "\nLocal Alignment Score: " << global_maxScore << endl;
-        if (alignedX.empty() || alignedY.empty()) {
-            cout << "Warning: Alignment traceback failed or spans too many chunks.\n";
+    // Traceback
+    int i = m, j = n;
+    string lcs_str;
+    while (i > 0 && j > 0) {
+        if (b[i][j] == 'D') {
+            lcs_str += x[i - 1];
+            --i; --j;
+        } else if (b[i][j] == 'U') {
+            --i;
         } else {
-            printColoredAlignment(alignedX, alignedY);
-            cout << "\nAlignment saved to alignment.txt" << endl;
+            --j;
         }
     }
+    reverse(lcs_str.begin(), lcs_str.end());
+    cout << "\n\nLCS length: " << prev[n] << "\n\nLCS: " << lcs_str << endl;
 }
 
 int main(int argc, char** argv) {
@@ -444,12 +523,13 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     try {
-        if (argc < 3) {
+        if (argc < 4) {
             if (rank == 0)
-                cout << "Usage: " << argv[0] << " <fasta_file1> <fasta_file2>" << endl;
+                cout << "Usage: " << argv[0] << " <fasta_file1> <fasta_file2> <method: 1=global, 2=local, 3=LCS>" << endl;
             MPI_Finalize();
             return 1;
         }
+
 
         string seq1, seq2, header1, header2;
         if (rank == 0) {
@@ -469,29 +549,29 @@ int main(int argc, char** argv) {
             seq1.resize(seq1_len);
             seq2.resize(seq2_len);
         }
+
         MPI_Bcast(&seq1[0], seq1_len, MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Bcast(&seq2[0], seq2_len, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-        int choice = -1;
-        if (rank == 0) {
-            cout << "Select Alignment Method:\n1. Global\n2. Local \nChoice: ";
-            cin >> choice;
-        }
+        int choice = atoi(argv[3]);
         MPI_Bcast(&choice, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         switch (choice) {
             case 1:
                 if (rank == 0)
-                    simdGlobalAlign(seq1, seq2); // Only rank 0 runs global alignment
+                    globalalign(seq1, seq2);
                 break;
             case 2:
-                // All ranks participate in local alignment.
-                mpiLocalAlign(seq1, seq2);
+                localalign(seq1, seq2);
+                break;
+            case 3:
+                lcs(seq1, seq2);
                 break;
             default:
                 if (rank == 0)
-                    cout << "Invalid choice!" << endl;
+                    cout << "Invalid choice! Use 1 for global, 2 for local." << endl;
         }
+
     } catch (const exception &e) {
         cerr << e.what() << endl;
     }
@@ -499,4 +579,5 @@ int main(int argc, char** argv) {
     MPI_Finalize();
     return 0;
 }
+
 
