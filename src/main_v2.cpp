@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <stdexcept>
 #include <omp.h>
-#include <immintrin.h> 
-#include <mpi.h>    
+#include <immintrin.h>
+#include <mpi.h>
 #include <cstdint>
 
 using namespace std;
@@ -109,8 +109,8 @@ void simdGlobalAlign(const string &x, const string &y) {
             v_result = _mm256_max_epi32(v_result, v_gapUp);
 
             _mm256_storeu_si256((__m256i*)&dp[i][j], v_result);
-        } 
-         
+        }
+
         // Insert progress bar update every 1000 rows or at the last row
         if (i % 1000 == 0 || i == m) {
             showProgressBar(i, m);
@@ -141,34 +141,34 @@ void simdGlobalAlign(const string &x, const string &y) {
     cout << "\nGlobal Alignment Score: " << dp[m][n] << endl;
     printColoredAlignment(alignedX, alignedY);
 }
- 
+
 void mpiLocalAlign(const string &x, const string &y) {
     int m = x.size(), n = y.size();
-    
+
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    
+
     int numThreads = omp_get_max_threads();
-    
+
     // Divide the rows of x among ranks.
     int chunkSize = (m + size - 1) / size;
     int start = rank * chunkSize;
     int end = min(start + chunkSize, m);
     int localRows = end - start;
-    
+
     // Allocate DP table with (localRows+1) rows.
     // For rank 0, dp[0] is all zeros.
     // For rank > 0, dp[0] will be received from rank-1.
     vector<vector<int>> dp(localRows + 1, vector<int>(n + 1, 0));
-    
+
     // For ranks > 0, receive the last row from the previous process
     if (rank > 0) {
         MPI_Recv(dp[0].data(), n + 1, MPI_INT, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
-    
+
     int local_maxScore = 0, local_maxI = 0, local_maxJ = 0;
-    
+
     // Fill DP table for rows 1 to localRows.
     for (int i = 1; i <= localRows; i++) {
         int global_i = start + i - 1; // Map local row to global index in x.
@@ -185,17 +185,17 @@ void mpiLocalAlign(const string &x, const string &y) {
         }
         // Optionally, update progress bar here.
     }
-    
+
     // For ranks that are not the last, send the last computed row to the next rank.
     if (rank < size - 1) {
         MPI_Send(dp[localRows].data(), n + 1, MPI_INT, rank + 1, 0, MPI_COMM_WORLD);
     }
-    
+
     // Now, use MPI_Reduce (or MPI_Gather) to find the overall best score and corresponding indices.
     int local_data[3] = {local_maxScore, local_maxI, local_maxJ};
     int global_data[3] = {0, 0, 0};
     MPI_Reduce(local_data, global_data, 3, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
-    
+
     // The following traceback is simplified and works correctly only if the optimal
     // alignment is entirely contained within one process’s computed DP table.
     // For a cross-chunk alignment, a full traceback across processes requires a more
@@ -208,7 +208,7 @@ void mpiLocalAlign(const string &x, const string &y) {
         int gi = global_data[1]; // global index in x where max was found
         int gj = global_data[2];
         // For rank 0, start == 0, so local index equals global index + 1.
-        int li = gi - start + 1; 
+        int li = gi - start + 1;
         string alignedX, alignedY;
         while (li > 0 && gj > 0 && dp[li][gj] > 0) {
             int current = dp[li][gj];
@@ -274,19 +274,19 @@ int main(int argc, char** argv) {
         MPI_Bcast(&choice, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         switch (choice) {
-            case 1: 
-                if (rank == 0) 
+            case 1:
+                if (rank == 0)
                     simdGlobalAlign(seq1, seq2); // Only rank 0 runs global
                 break;
-            case 2:  
+            case 2:
                 // All ranks participate in local alignment.
                 mpiLocalAlign(seq1, seq2);
                 break;
-            default: 
-                if (rank == 0) 
+            default:
+                if (rank == 0)
                     cout << "Invalid choice!" << endl;
-        }  
-        
+        }
+
     } catch (const exception &e) {
         cerr << e.what() << endl;
     }

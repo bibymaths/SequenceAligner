@@ -22,8 +22,8 @@ const int LINE_WIDTH = 150;
 #define RESET "\033[0m"
 #define GREEN "\033[32m"
 #define RED "\033[31m"
-#define CYAN "\033[36m" 
- 
+#define CYAN "\033[36m"
+
 void showProgressBar(int progress, int total) {
     int barWidth = 50;
     float percentage = (float)progress / total;
@@ -123,7 +123,7 @@ void simdGlobalAlign(const string &x, const string &y) {
 
             _mm256_storeu_si256((__m256i*)&dp[i][j], v_result);
         }
-         
+
         // Update progress bar every 1000 rows or on the last row.
         if (i % 1000 == 0 || i == m) {
             showProgressBar(i, m);
@@ -198,10 +198,10 @@ TracebackResult recursiveTraceback(int global_i, int j, int rank, int dpStart, i
     TracebackResult result;
     result.alignedX = "";
     result.alignedY = "";
-    
+
     // Convert global row to local DP index.
     int local_i = global_i - chunkStart + dpStart;
-    
+
     // Walk the DP/traceback in this chunk.
     while (local_i > dpStart && j > 0 && dp[idx(local_i, j, n)] > 0) {
         char dir = trace[idx(local_i, j, n)];
@@ -225,12 +225,12 @@ TracebackResult recursiveTraceback(int global_i, int j, int rank, int dpStart, i
     reverse(result.alignedY.begin(), result.alignedY.end());
     result.new_global_i = global_i;
     result.new_j = j;
-    
+
     // If reached the top boundary and still nonzero, request continuation.
     if (local_i == dpStart && dp[idx(local_i, j, n)] > 0 && rank > 0) {
         int req[2] = { global_i, j };
         MPI_Send(req, 2, MPI_INT, rank - 1, TRACEBACK_REQ_TAG, MPI_COMM_WORLD);
-        
+
         int lenX, lenY, new_global_i, new_j;
         MPI_Recv(&lenX, 1, MPI_INT, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         char *bufX = new char[lenX + 1];
@@ -244,7 +244,7 @@ TracebackResult recursiveTraceback(int global_i, int j, int rank, int dpStart, i
         MPI_Recv(&new_j, 1, MPI_INT, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         string segX(bufX), segY(bufY);
         delete[] bufX; delete[] bufY;
-        
+
         result.alignedX = segX + result.alignedX;
         result.alignedY = segY + result.alignedY;
         result.new_global_i = new_global_i;
