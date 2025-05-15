@@ -1,4 +1,6 @@
 #include <iostream>
+#include <chrono>
+#include <iomanip>
 #include <fstream>
 #include <vector>
 #include <bitset>
@@ -88,6 +90,36 @@ void processFasta(const string &filename, string &header, string &sequence) {
 }
 
 /**
+ * @brief Dump an already-aligned pair of sequences (no colors) into a stream,
+ *        in the same LINE_WIDTH blocks as printColoredAlignment.
+ *
+ * @param seq1 First aligned sequence (may contain ‘-’).
+ * @param seq2 Second aligned sequence (may contain ‘-’).
+ * @param os   Output stream to use (e.g. a std::ofstream).
+ */
+void savePlainAlignment(const string &seq1,
+                        const string &seq2,
+                        ostream &os)
+{
+    size_t len1 = seq1.size();
+    size_t len2 = seq2.size();
+    size_t maxLength = max(len1, len2);
+
+    // pad shorter sequence to the same length
+    string a1 = seq1, a2 = seq2;
+    if (len1 < maxLength) a1.append(maxLength - len1, '-');
+    if (len2 < maxLength) a2.append(maxLength - len2, '-');
+
+    for (size_t i = 0; i < maxLength; i += LINE_WIDTH) {
+        size_t end = min(i + LINE_WIDTH, maxLength);
+        os << "\nPosition: " << (i+1) << " - " << end << "\n";
+        os << a1.substr(i, end - i) << "\n";
+        os << a2.substr(i, end - i) << "\n";
+    }
+    os << "\n";
+}
+
+/**
  * @brief Print two aligned sequences side-by-side with colors.
  *
  * Matches are shown in green, gaps in red, mismatches in cyan.  Long
@@ -145,6 +177,9 @@ void globalalign(const string &x, const string &y) {
     vector<int> curr_row(n + 1, 0);
     vector<char> prev_trace(n + 1, '0');
     vector<char> curr_trace(n + 1, '0');
+
+    using Clock = std::chrono::high_resolution_clock;
+    auto t_start = Clock::now();
 
     for (int j = 0; j <= n; ++j) {
         prev_row[j] = j * GAP;
@@ -223,10 +258,21 @@ void globalalign(const string &x, const string &y) {
             alignedY += y[j - 1];
             j--;
         }
-
         // recompute rows for the next traceback step
         swap(prev_row, curr_row);
     }
+
+    auto t_end = Clock::now();
+    auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+
+    size_t total   = alignedX.size();
+    size_t gaps    = 0, matches = 0;
+    for (size_t i = 0; i < total; ++i) {
+        if (alignedX[i]=='-' || alignedY[i]=='-') ++gaps;
+        else if (alignedX[i]==alignedY[i])       ++matches;
+    }
+    double identity = double(matches) / total;
+    double coverage = double(total - gaps) / total;
 
     reverse(alignedX.begin(), alignedX.end());
     reverse(alignedY.begin(), alignedY.end());
@@ -234,15 +280,34 @@ void globalalign(const string &x, const string &y) {
     cout << "\nGlobal Alignment Score: " << prev_row[n] << endl;
     printColoredAlignment(alignedX, alignedY);
 
-    ofstream outfile("alignment.txt");
+    ofstream outfile("global_alignment.txt");
     if (outfile) {
         outfile << "Global Alignment Score: " << prev_row[n] << "\n\n";
-        printColoredAlignment(alignedX, alignedY, outfile);
+        printColoredAlignment(alignedX, alignedY);
+        savePlainAlignment(alignedX, alignedY, outfile);
         outfile.close();
-        cout << "\nAlignment saved to alignment.txt\n";
     } else {
-        cerr << "Error: Unable to open output file alignment.txt\n";
+        cerr << "Error: Unable to open output file global_alignment.txt\n";
     }
+
+    ofstream js("global_stats.json");
+    if (js) {
+      js << fixed << setprecision(6)
+         << "{\n"
+         << "  \"method\":      \"global\",\n"
+         << "  \"score\":       " << prev_row[n]  << ",\n"
+         << "  \"matches\":     " << matches << ",\n"
+         << "  \"gaps\":        " << gaps << ",\n"
+         << "  \"total\":       " << total << ",\n"
+         << "  \"identity\":    " << identity << ",\n"
+         << "  \"coverage\":    " << coverage << ",\n"
+         << "  \"time_ms\":     " << time_ms << "\n"
+         << "}\n";
+      js.close();
+    } else {
+      cerr << "Error: cannot open global_stats.json\n";
+    }
+
 }
 
 
@@ -417,6 +482,9 @@ void localalign(const std::string &x, const std::string &y) {
         MPI_Recv(prev.data(), n+1, MPI_INT, rank-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
 
+    using Clock = std::chrono::high_resolution_clock;
+    auto t_start = Clock::now();
+
     struct Loc { int score, i, j; };
     Loc localBest{0,0,0};
 
@@ -543,8 +611,51 @@ void localalign(const std::string &x, const std::string &y) {
             alignedY.resize(b);
             MPI_Recv(&alignedY[0], b, MPI_CHAR, bestRank, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
+
+        auto t_end = Clock::now();
+        auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+
+        size_t total = alignedX.size();
+        size_t gaps  = 0, matches = 0;
+        for (size_t i = 0; i < total; ++i) {
+            if (alignedX[i] == '-' || alignedY[i] == '-')
+            ++gaps;
+            else if (alignedX[i] == alignedY[i])
+            ++matches;
+        }
+        double identity = double(matches) / double(total);
+        double coverage = double(total - gaps) / double(total);
+
         std::cout << "\nLocal Alignment Score: " << bestScore << "\n";
         printColoredAlignment(alignedX, alignedY);
+        ofstream outfile("local_alignment.txt");
+        if (outfile) {
+            outfile << "Local Alignment Score: " << bestScore << "\n\n";
+            printColoredAlignment(alignedX, alignedY);
+            savePlainAlignment(alignedX, alignedY, outfile);
+            outfile.close();
+        } else {
+            cerr << "Error: Unable to open output file local_alignment.txt\n";
+        }
+
+        ofstream js("local_stats.json");
+        if (js) {
+          js << fixed << setprecision(6)
+             << "{\n"
+             << "  \"method\":      \"local\",\n"
+             << "  \"score\":       " << bestScore << ",\n"
+             << "  \"matches\":     " << matches << ",\n"
+             << "  \"gaps\":        " << gaps << ",\n"
+             << "  \"total\":       " << total << ",\n"
+             << "  \"identity\":    " << identity << ",\n"
+             << "  \"coverage\":    " << coverage << ",\n"
+             << "  \"time_ms\":     " << time_ms << "\n"
+             << "}\n";
+          js.close();
+        } else {
+          cerr << "Error: cannot open local_stats.json\n";
+        }
+
     }
 }
 
@@ -625,8 +736,12 @@ void lcs(const string &x, const string &y) {
     }
     reverse(lcs_str.begin(), lcs_str.end());
 
+    std::ofstream outfile ("lcs.txt");
     cout << "\n\nLCS length: " << prev[n]
          << "\n\nLCS: "        << lcs_str << "\n";
+    outfile << "\nLCS length: " << prev[n]
+         << "\n\nLCS: "        << lcs_str << "\n";
+    outfile.close();
 }
 
 
