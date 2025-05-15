@@ -11,7 +11,8 @@
 #include <mpi.h>
 #include <cstdint>
 #include <sstream>
-
+#include "EDNAFULL.h"
+#include <unordered_map>
 using namespace std;
 
 /**
@@ -19,6 +20,7 @@ using namespace std;
  * @brief Sequence aligner supporting global, local and LCS methods using MPI, OpenMP, and AVX2.
  */
 
+constexpr int EDNA_SIZE = 15;
 /// Score awarded for a character match
 static const int MATCH    =  1;
 /// Score penalty for a character mismatch
@@ -26,7 +28,7 @@ static const int MISMATCH = -1;
 /// Gap penalty
 static const int GAP      = -1;
 /// Number of columns per line when printing alignments
-static const int LINE_WIDTH = 150;
+static const int LINE_WIDTH = 120;
 
 /// ANSI escape code: reset color
 #define RESET "\033[0m"
@@ -36,6 +38,32 @@ static const int LINE_WIDTH = 150;
 #define RED   "\033[31m"
 /// ANSI escape code: cyan
 #define CYAN  "\033[36m"
+
+// The EDNAFULL matrix is defined as a 2D C array of size N×N:
+static constexpr int N = EDNA_SIZE;
+static const double (*EDNA_mat)[N] = EDNAFULL_matrix;
+
+// Map each IUPAC base code to its row/col in EDNAFULL
+static const std::unordered_map<char,int> edna_index = {
+  {'A',0},{'C',1},{'G',2},{'T',3},
+  {'U',3}, // T=U
+  {'R',4},{'Y',5},{'S',6},{'W',7},
+  {'K',8},{'M',9},{'B',10},{'D',11},
+  {'H',12},{'V',13},{'N',14},{'X',14}
+};
+
+/**
+ * @brief Lookup the EDNAFULL score between two bases (incl. ambiguous codes).
+ * @param x First base (IUPAC code).
+ * @param y Second base (IUPAC code).
+**/
+inline int edna_score(char x, char y) {
+    auto ix = edna_index.find(x);
+    auto iy = edna_index.find(y);
+    if (ix==edna_index.end() || iy==edna_index.end())
+        throw std::runtime_error(std::string("Invalid base: ")+x+","+y);
+    return static_cast<int>(EDNA_mat[ix->second][iy->second]);
+}
 
 /**
  * @brief Display a textual progress bar on stdout.
@@ -188,8 +216,8 @@ void globalalign(const string &x, const string &y) {
         curr_trace[0] = 'u';
 
         for (int j = 1; j <= n; j++) {
-            int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
-
+//            int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
+            int matchScore = edna_score(x[i-1], y[j-1]);
             int diag = prev_row[j - 1] + matchScore;
             int up = prev_row[j] + GAP;
             int left = curr_row[j - 1] + GAP;
@@ -227,7 +255,8 @@ void globalalign(const string &x, const string &y) {
             continue;
         }
 
-        int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
+//        int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
+        int matchScore = edna_score(x[i-1], y[j-1]);
 
         int diag = prev_row[j - 1] + matchScore;
         int up = prev_row[j] + GAP;
@@ -485,13 +514,14 @@ void localalign(const std::string &x, const std::string &y) {
 //    #pragma omp parallel
     {
         Loc thrBest{0,0,0};
-//        #pragma omp for
+        #pragma omp for
         for (int ii = 1; ii <= localRows; ++ii) {
             int gi = start + ii - 1; // global index in x
             curr[0] = 0;
             #pragma omp simd
             for (int j = 1; j <= n; ++j) {
-                int ms = (x[gi] == y[j-1] ? MATCH : MISMATCH);
+//                int ms = (x[gi] == y[j-1] ? MATCH : MISMATCH);
+                int ms = edna_score(x[gi], y[j-1]);
                 int v  = prev[j-1] + ms;
                 int u  = prev[j]   + GAP;
                 int l  = curr[j-1] + GAP;
@@ -506,7 +536,7 @@ void localalign(const std::string &x, const std::string &y) {
                 showProgressBar(ii, localRows);
             std::swap(prev, curr);
         }
-//        #pragma omp critical
+        #pragma omp critical
         if (thrBest.score > localBest.score)
             localBest = thrBest;
     }
@@ -552,7 +582,8 @@ void localalign(const std::string &x, const std::string &y) {
         std::vector<std::vector<int>> dp(I+1, std::vector<int>(J+1,0));
         for (int i = 1; i <= I; ++i) {
             for (int j = 1; j <= J; ++j) {
-                int ms = (x[i-1]==y[j-1]?MATCH:MISMATCH);
+//                int ms = (x[i-1]==y[j-1]?MATCH:MISMATCH);
+                int ms = edna_score(x[i-1], y[j-1]);
                 int v  = dp[i-1][j-1] + ms;
                 int u  = dp[i-1][j]   + GAP;
                 int l  = dp[i][j-1]   + GAP;
@@ -566,7 +597,8 @@ void localalign(const std::string &x, const std::string &y) {
         int i = I, j = J;
         while (i > 0 && j > 0 && dp[i][j] > 0) {
             int cur = dp[i][j];
-            int ms  = (x[i-1]==y[j-1]?MATCH:MISMATCH);
+//            int ms  = (x[i-1]==y[j-1]?MATCH:MISMATCH);
+            int ms  = edna_score(x[i-1], y[j-1]);
             if (cur == dp[i-1][j-1] + ms) {
                 alignedX.push_back(x[i-1]);
                 alignedY.push_back(y[j-1]);
@@ -625,7 +657,6 @@ void localalign(const std::string &x, const std::string &y) {
         ofstream outfile("local_alignment.txt");
         if (outfile) {
             outfile << "Local Alignment Score: " << bestScore << "\n\n";
-            printColoredAlignment(alignedX, alignedY);
             savePlainAlignment(alignedX, alignedY, outfile);
             outfile.close();
         } else {
