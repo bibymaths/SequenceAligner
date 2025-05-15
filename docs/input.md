@@ -7,17 +7,31 @@
 
 Example:
 
+For DNA sequences, use the following format: 
+
 ```fasta
 >sequence1
 AGCTAGCTAGCTA
+>sequence2 
+GCTAGCTAGCTAG
+``` 
+
+For protein sequences, use the following format:
+
+```fasta 
+>protein1
+MKTAYIAKQRQISFVKSHFSRQDILDL
+>protein2
+MKTAAYIAKQRQISFVKSHFSRQDILDL
 ```
 
 ---
 
 ## Test Files
 
-Located in the `files/` directory:
+Located in the `files/` directory: 
 
-* `seq1.fasta`: Genomic reference (e.g. RefSeqGene)
-* `seq3.fasta`: mRNA variant
-* `seq2.fasta`: Additional test case
+* `dna1.fasta`: Contains DNA sequences for testing. 
+* `protein1.fasta`: Contains protein sequences for testing.
+* `dna2.fasta`: Contains DNA sequences for testing.
+* `protein2.fasta`: Contains protein sequences for testing.

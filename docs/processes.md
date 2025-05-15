@@ -109,17 +109,6 @@ $$
 \end{cases}
 $$
 
-**In Code:**
-
-```cpp
-int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
-int scores[] = {
-    dp[i - 1][j - 1] + matchScore,
-    dp[i - 1][j] + GAP,
-    dp[i][j - 1] + GAP
-};
-```
-
 **Traceback:** Built from a `traceback[][]` matrix storing `'D'`, `'U'`, `'L'` for path recovery.
 
 ---
@@ -152,18 +141,6 @@ H[i][j-1] + \text{GAP}
 $$
 
 **Reset to 0** allows alignment to start anywhere and stop at the best score.
-
-**In Code:**
-
-```cpp
-int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
-dp[i][j] = max({
-    0,
-    dp[i - 1][j - 1] + matchScore,
-    dp[i - 1][j] + GAP,
-    dp[i][j - 1] + GAP
-});
-```
 
 **Traceback:** Starts from the max score cell and moves until score is zero.
 

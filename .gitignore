@@ -4,6 +4,8 @@
 # Build directories
 build/
 
+# Results directories
+results/
 
 # Compiled Object files
 *.slomake

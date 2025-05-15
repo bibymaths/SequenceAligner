@@ -1,3 +1,15 @@
+/*
+* @file main.cpp
+* @brief Global and local sequence alignment using MPI and OpenMP.
+* @author Abhinav Mishra
+* @date 2023-10-01
+*
+* This program performs global and local sequence alignment using the
+* Needleman-Wunsch and Smith-Waterman algorithms, respectively. It uses
+* MPI for parallel processing across multiple nodes and OpenMP for
+* parallelization within each node.
+*/
+
 #include <iostream>
 #include <chrono>
 #include <iomanip>
@@ -12,21 +24,17 @@
 #include <cstdint>
 #include <sstream>
 #include "EDNAFULL.h"
+#include "EBLOSUM62.h"
 #include <unordered_map>
+#include <filesystem>
+#include <climits>
 using namespace std;
+enum ScoreMode { MODE_DNA, MODE_PROTEIN };
 
-/**
- * @file aligner.cpp
- * @brief Sequence aligner supporting global, local and LCS methods using MPI, OpenMP, and AVX2.
- */
-
-constexpr int EDNA_SIZE = 15;
-/// Score awarded for a character match
-static const int MATCH    =  1;
-/// Score penalty for a character mismatch
-static const int MISMATCH = -1;
 /// Gap penalty
-static const int GAP      = -1;
+static const int GAP      = -2;    // penalty for a gap in local alignment
+static const int GAP_OPEN   = -1;  // penalty to open a gap in global alignment
+static const int GAP_EXTEND = -0.5;  // penalty to extend an existing gap in global alignment
 /// Number of columns per line when printing alignments
 static const int LINE_WIDTH = 120;
 
@@ -39,11 +47,8 @@ static const int LINE_WIDTH = 120;
 /// ANSI escape code: cyan
 #define CYAN  "\033[36m"
 
-// The EDNAFULL matrix is defined as a 2D C array of size N×N:
-static constexpr int N = EDNA_SIZE;
-static const double (*EDNA_mat)[N] = EDNAFULL_matrix;
 
-// Map each IUPAC base code to its row/col in EDNAFULL
+// The EDNAFULL matrix is defined as a 2D C array of size N×N:
 static const std::unordered_map<char,int> edna_index = {
   {'A',0},{'C',1},{'G',2},{'T',3},
   {'U',3}, // T=U
@@ -51,6 +56,14 @@ static const std::unordered_map<char,int> edna_index = {
   {'K',8},{'M',9},{'B',10},{'D',11},
   {'H',12},{'V',13},{'N',14},{'X',14}
 };
+
+// The BLOSUM62 matrix is defined as a 2D C array of size 24×24:
+static const std::unordered_map<char, int> blosum62_index = {
+  {'A', 0}, {'R', 1}, {'N', 2}, {'D', 3}, {'C', 4}, {'Q', 5}, {'E', 6}, {'G', 7},
+  {'H', 8}, {'I', 9}, {'L',10}, {'K',11}, {'M',12}, {'F',13}, {'P',14}, {'S',15},
+  {'T',16}, {'W',17}, {'Y',18}, {'V',19}, {'B',20}, {'Z',21}, {'X',22}, {'*',23}
+};
+
 
 /**
  * @brief Lookup the EDNAFULL score between two bases (incl. ambiguous codes).
@@ -62,8 +75,35 @@ inline int edna_score(char x, char y) {
     auto iy = edna_index.find(y);
     if (ix==edna_index.end() || iy==edna_index.end())
         throw std::runtime_error(std::string("Invalid base: ")+x+","+y);
-    return static_cast<int>(EDNA_mat[ix->second][iy->second]);
+    return static_cast<int>(EDNAFULL_matrix[ix->second][iy->second]);
 }
+
+/**
+ * @brief Lookup the BLOSUM62 score between two amino acids.
+ * @param x First amino acid (1-letter code).
+ * @param y Second amino acid (1-letter code).
+**/
+inline int blosum62_score(char x, char y) {
+    auto ix = blosum62_index.find(x);
+    auto iy = blosum62_index.find(y);
+    if (ix == blosum62_index.end() || iy == blosum62_index.end())
+        throw std::runtime_error(std::string("Invalid protein code: ") + x + "," + y);
+    return static_cast<int>(EBLOSUM62_matrix[ix->second][iy->second]);
+}
+
+
+/**
+ * @brief Lookup the score between two characters based on the selected mode.
+ * @param x First character (base or amino acid).
+ * @param y Second character (base or amino acid).
+ * @param mode Scoring mode (MODE_DNA or MODE_PROTEIN).
+ * @return Score based on the selected scoring matrix.
+**/
+inline int score(char x, char y, ScoreMode mode) {
+    if (mode == MODE_DNA) return edna_score(x, y);
+    else return blosum62_score(x, y);
+}
+
 
 /**
  * @brief Display a textual progress bar on stdout.
@@ -85,6 +125,34 @@ void showProgressBar(int progress, int total) {
     cout.flush();
 }
 
+/**
+ * @brief Extract the accession number from a FASTA header line.
+ *
+ * The accession number is the first word in the header line, which
+ * is expected to start with a `>`.
+ *
+ * @param header The header line from a FASTA file.
+ * @return The accession number (first word).
+ */
+std::string getAccession(const std::string& header, ScoreMode mode) {
+    if (mode == MODE_DNA) {
+        std::istringstream iss(header);
+        std::string accession;
+        iss >> accession;
+        return accession;
+    } else if (mode == MODE_PROTEIN) {
+        size_t firstPipe = header.find('|');
+        size_t secondPipe = header.find('|', firstPipe + 1);
+        if (firstPipe != std::string::npos && secondPipe != std::string::npos) {
+            return header.substr(firstPipe + 1, secondPipe - firstPipe - 1);
+        } else {
+            // Fallback to the first word if pipes are not found
+            return header;
+        }
+    }
+    // If neither mode matches, return the header as is
+    return header;
+}
 
 /**
  * @brief Read the first record from a FASTA file.
@@ -186,6 +254,92 @@ void printColoredAlignment(const string &seq1, const string &seq2, ostream &os =
     }
 }
 
+/* * @brief Initialize the DP row and gap arrays for affine gap scoring.
+ *
+ * @param n         Length of the second sequence (Y).
+ * @param prev_row  Row i-1, match/mismatch scores.
+ * @param prev_gapX Row i-1, gap scores in X.
+ * @param prev_gapY Row i-1, gap scores in Y.
+ * @param isGlobal  Flag to indicate if this is a global alignment.
+ */
+void initAffineDP(int n,
+                  vector<int>& prev_row,
+                  vector<int>& prev_gapX,
+                  vector<int>& prev_gapY,
+                  bool isGlobal)
+{
+    prev_row .assign(n+1, isGlobal ? INT_MIN/2 : 0);
+    prev_gapX.assign(n+1, INT_MIN/2);
+    prev_gapY.assign(n+1, isGlobal ? INT_MIN/2 : 0);
+
+    if (isGlobal) {
+        // Global: j gaps from the very start
+        prev_row[0] = 0;
+        for (int j = 1; j <= n; ++j) {
+            // opening + (j-1)×extension
+            prev_gapY[j] = GAP_OPEN + (j-1)*GAP_EXTEND;
+            prev_row [j] = prev_gapY[j];
+        }
+    }
+}
+
+
+/* * @brief Compute a single row of the DP matrix for affine gap scoring.
+ *
+ * @param i         Current row index (1-based).
+ * @param x         First sequence (X).
+ * @param y         Second sequence (Y).
+ * @param mode      Scoring mode (MODE_DNA or MODE_PROTEIN).
+ * @param prev_row  Row i-1, match/mismatch scores.
+ * @param prev_gapX Row i-1, gap scores in X.
+ * @param prev_gapY Row i-1, gap scores in Y.
+ * @param curr_row  Row i, match/mismatch scores.
+ * @param curr_gapX Row i, gap scores in X.
+ * @param curr_gapY Row i, gap scores in Y.
+ */
+void computeAffineDPRow(int i,
+                        const string& x,
+                        const string& y,
+                        ScoreMode mode,
+                        vector<int>& prev_row,
+                        vector<int>& prev_gapX,
+                        vector<int>& prev_gapY,
+                        vector<int>& curr_row,
+                        vector<int>& curr_gapX,
+                        vector<int>& curr_gapY)
+{
+    int n = y.size();
+    curr_row .assign(n+1, INT_MIN/2);
+    curr_gapX.assign(n+1, INT_MIN/2);
+    curr_gapY.assign(n+1, INT_MIN/2);
+
+    // j=0 column: gap in X down to (i,0)
+    curr_gapX[0] = max(prev_row[0]  + GAP_OPEN + GAP_EXTEND,
+                       prev_gapX[0] + GAP_EXTEND);
+    curr_row[0] = curr_gapX[0];
+
+    for (int j = 1; j <= n; ++j) {
+        // open or extend a gap in X (vertical)
+        curr_gapX[j] = max(
+          prev_row[j]   + GAP_OPEN + GAP_EXTEND,
+          prev_gapX[j]  + GAP_EXTEND
+        );
+
+        // open or extend a gap in Y (horizontal)
+        curr_gapY[j] = max(
+          curr_row[j-1] + GAP_OPEN + GAP_EXTEND,
+          curr_gapY[j-1] + GAP_EXTEND
+        );
+
+        // match/mismatch diagonal
+        int mscore = score(x[i-1], y[j-1], mode);
+        int diag   = prev_row[j-1] + mscore;
+
+        // choose best of the three
+        curr_row[j] = max({ diag, curr_gapX[j], curr_gapY[j] });
+    }
+}
+
 /**
  * @brief Perform a global (Needleman–Wunsch) alignment of two sequences.
  *
@@ -195,43 +349,28 @@ void printColoredAlignment(const string &seq1, const string &seq2, ostream &os =
  * @param x First sequence.
  * @param y Second sequence.
  */
-void globalalign(const string &x, const string &y) {
+void globalalign(const string &x, const string &y,
+                 const string &header1, const string &header2,
+                 const std::string &outdir, ScoreMode mode) {
     int m = x.size(), n = y.size();
 
-    vector<int> prev_row(n + 1, 0);
-    vector<int> curr_row(n + 1, 0);
+    vector<int> prev_row, prev_gapX, prev_gapY;
+    initAffineDP(n, prev_row, prev_gapX, prev_gapY, /*isGlobal=*/true);
+    vector<int> curr_row, curr_gapX, curr_gapY;
+
     vector<char> prev_trace(n + 1, '0');
     vector<char> curr_trace(n + 1, '0');
 
     using Clock = std::chrono::high_resolution_clock;
     auto t_start = Clock::now();
 
-    for (int j = 0; j <= n; ++j) {
-        prev_row[j] = j * GAP;
-        prev_trace[j] = 'l';
-    }
-
-    for (int i = 1; i <= m; i++) {
-        curr_row[0] = i * GAP;
-        curr_trace[0] = 'u';
-
-        for (int j = 1; j <= n; j++) {
-//            int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
-            int matchScore = edna_score(x[i-1], y[j-1]);
-            int diag = prev_row[j - 1] + matchScore;
-            int up = prev_row[j] + GAP;
-            int left = curr_row[j - 1] + GAP;
-
-            int score = max({diag, up, left});
-            curr_row[j] = score;
-
-            if (score == diag) curr_trace[j] = 'd';
-            else if (score == up) curr_trace[j] = 'u';
-            else curr_trace[j] = 'l';
-        }
-
-        prev_row.swap(curr_row);
-        prev_trace.swap(curr_trace);
+     for (int i = 1; i <= m; ++i) {
+          computeAffineDPRow(i, x, y, mode,
+                             prev_row, prev_gapX, prev_gapY,
+                             curr_row, curr_gapX, curr_gapY);
+          prev_row.swap(curr_row);
+          prev_gapX.swap(curr_gapX);
+          prev_gapY.swap(curr_gapY);
 
         if (i % 1000 == 0 || i == m) {
             showProgressBar(i, m);
@@ -255,9 +394,7 @@ void globalalign(const string &x, const string &y) {
             continue;
         }
 
-//        int matchScore = (x[i - 1] == y[j - 1]) ? MATCH : MISMATCH;
-        int matchScore = edna_score(x[i-1], y[j-1]);
-
+        int matchScore = score(x[i - 1], y[j - 1], mode);
         int diag = prev_row[j - 1] + matchScore;
         int up = prev_row[j] + GAP;
         int left = curr_row[j - 1] + GAP;
@@ -298,15 +435,20 @@ void globalalign(const string &x, const string &y) {
     double identity = double(matches) / total;
     double coverage = double(total - gaps) / total;
 
+    std::string accession1 = getAccession(header1, mode);
+    std::string accession2 = getAccession(header2, mode);
+
     reverse(alignedX.begin(), alignedX.end());
     reverse(alignedY.begin(), alignedY.end());
 
-    cout << "\nGlobal Alignment Score: " << prev_row[n] << endl;
-    printColoredAlignment(alignedX, alignedY);
+    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
 
-    ofstream outfile("global_alignment.txt");
+    cout << "\n\nGlobal Alignment Score: " << prev_row[n] << endl;
+    std::ofstream outfile(outdir + "/" + modeDir + "/global_alignment.txt");
     if (outfile) {
-        outfile << "Global Alignment Score: " << prev_row[n] << "\n\n";
+        outfile << "\nSequence 1: " << header1;
+        outfile << "\nSequence 2: " << header2;
+        outfile << "\n\nGlobal Alignment Score: " << prev_row[n] << "\n\n";
         printColoredAlignment(alignedX, alignedY);
         savePlainAlignment(alignedX, alignedY, outfile);
         outfile.close();
@@ -314,7 +456,7 @@ void globalalign(const string &x, const string &y) {
         cerr << "Error: Unable to open output file global_alignment.txt\n";
     }
 
-    ofstream js("global_stats.json");
+    ofstream js(outdir + "/" + modeDir + "/global_stats.json");
     if (js) {
       js << fixed << setprecision(6)
          << "{\n"
@@ -325,156 +467,15 @@ void globalalign(const string &x, const string &y) {
          << "  \"total\":       " << total << ",\n"
          << "  \"identity\":    " << identity << ",\n"
          << "  \"coverage\":    " << coverage << ",\n"
-         << "  \"time_ms\":     " << time_ms << "\n"
+         << "  \"time_ms\":     " << time_ms << ",\n"
+         << "  \"query\":       \"" << accession1 << "\",\n"
+         << "  \"target\":      \"" << accession2 << "\"\n"
          << "}\n";
       js.close();
     } else {
       cerr << "Error: cannot open global_stats.json\n";
     }
 
-}
-
-
-// --- Advanced MPI Local Alignment with Recursive Multi-Chunk Traceback ---
-// Tags for traceback messages.
-const int TRACEBACK_REQ_TAG = 100;
-const int TRACEBACK_RESP_TAG = 101;
-
-
-/**
- * @brief Holds the result of a chunked traceback step in MPI local alignment.
- */
-struct TracebackResult {
-    string alignedX;   ///< Partial aligned segment from sequence X
-    string alignedY;   ///< Partial aligned segment from sequence Y
-    int    new_global_i; ///< Global row index where traceback stopped
-    int    new_j;        ///< Column index where traceback stopped
-};
-
-/**
- * @brief Compute a 1D index for a 2D DP array of size (m+1)×(n+1).
- * @param i Row index (0..m)
- * @param j Column index (0..n)
- * @param n Number of columns in the sequences
- * @return  Flattened index = i*(n+1) + j
- */
-inline int idx(int i, int j, int n) {
-    return i * (n + 1) + j;
-}
-
-/**
- * @brief Recursively traceback through a local DP chunk in MPI local alignment.
- *
- * If the traceback reaches the top of this chunk and still has positive score,
- * it will send a request to the previous MPI rank to continue.
- *
- * @param global_i   Current global row index in X.
- * @param j          Current column index in Y.
- * @param rank       MPI rank of this process.
- * @param dpStart    Row index in the local DP array that corresponds to global start.
- * @param chunkStart Global row index of the first row in this chunk.
- * @param dp         Flattened DP matrix for this chunk.
- * @param trace      Flattened traceback directions for this chunk.
- * @param n          Number of columns in Y.
- * @param x          The full X sequence.
- * @param y          The full Y sequence.
- * @return           A TracebackResult containing aligned fragments and new indices.
- */
-TracebackResult recursiveTraceback(int global_i, int j, int rank, int dpStart, int chunkStart,
-                                    const vector<int>& dp, const vector<char>& trace, int n,
-                                    const string &x, const string &y)
-{
-    TracebackResult result;
-    result.alignedX = "";
-    result.alignedY = "";
-
-    // Convert global row to local DP index.
-    int local_i = global_i - chunkStart + dpStart;
-
-    // Walk the DP/traceback in this chunk.
-    while (local_i > dpStart && j > 0 && dp[idx(local_i, j, n)] > 0) {
-        char dir = trace[idx(local_i, j, n)];
-        if (dir == 'd') {
-            result.alignedX.push_back(x[global_i]);
-            result.alignedY.push_back(y[j - 1]);
-            local_i--; j--; global_i--;
-        } else if (dir == 'u') {
-            result.alignedX.push_back(x[global_i]);
-            result.alignedY.push_back('-');
-            local_i--; global_i--;
-        } else if (dir == 'l') {
-            result.alignedX.push_back('-');
-            result.alignedY.push_back(y[j - 1]);
-            j--;
-        } else {
-            break;
-        }
-    }
-    reverse(result.alignedX.begin(), result.alignedX.end());
-    reverse(result.alignedY.begin(), result.alignedY.end());
-    result.new_global_i = global_i;
-    result.new_j = j;
-
-    // If reached the top boundary and still nonzero, request continuation.
-    if (local_i == dpStart && dp[idx(local_i, j, n)] > 0 && rank > 0) {
-        int req[2] = { global_i, j };
-        MPI_Send(req, 2, MPI_INT, rank - 1, TRACEBACK_REQ_TAG, MPI_COMM_WORLD);
-
-        int lenX, lenY, new_global_i, new_j;
-        MPI_Recv(&lenX, 1, MPI_INT, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        char *bufX = new char[lenX + 1];
-        MPI_Recv(bufX, lenX, MPI_CHAR, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        bufX[lenX] = '\0';
-        MPI_Recv(&lenY, 1, MPI_INT, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        char *bufY = new char[lenY + 1];
-        MPI_Recv(bufY, lenY, MPI_CHAR, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        bufY[lenY] = '\0';
-        MPI_Recv(&new_global_i, 1, MPI_INT, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&new_j, 1, MPI_INT, rank - 1, TRACEBACK_RESP_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        string segX(bufX), segY(bufY);
-        delete[] bufX; delete[] bufY;
-
-        result.alignedX = segX + result.alignedX;
-        result.alignedY = segY + result.alignedY;
-        result.new_global_i = new_global_i;
-        result.new_j = new_j;
-    }
-    return result;
-}
-
-/**
- * @brief Service an incoming MPI traceback request from a later rank.
- *
- * Receives the (i,j) position, performs recursiveTraceback, and
- * sends back the aligned segments and updated indices.
- *
- * @param chunkStart Global index of the first row in this chunk.
- * @param dpStart    Row index in the local DP array that corresponds to chunkStart.
- * @param dp         Flattened DP matrix for this chunk.
- * @param trace      Flattened traceback directions for this chunk.
- * @param n          Number of columns in Y.
- * @param x          The full X sequence.
- * @param y          The full Y sequence.
- * @param rank       MPI rank of this process.
- */
-void handleTracebackRequest(int chunkStart, int dpStart,
-                            const vector<int>& dp, const vector<char>& trace, int n,
-                            const string &x, const string &y, int rank)
-{
-    int req[2];
-    MPI_Status status;
-    MPI_Recv(req, 2, MPI_INT, MPI_ANY_SOURCE, TRACEBACK_REQ_TAG, MPI_COMM_WORLD, &status);
-    int requester = status.MPI_SOURCE;
-    int global_i = req[0];
-    int j = req[1];
-    TracebackResult res = recursiveTraceback(global_i, j, rank, dpStart, chunkStart, dp, trace, n, x, y);
-    int lenX = res.alignedX.size(), lenY = res.alignedY.size();
-    MPI_Send(&lenX, 1, MPI_INT, requester, TRACEBACK_RESP_TAG, MPI_COMM_WORLD);
-    MPI_Send(res.alignedX.c_str(), lenX, MPI_CHAR, requester, TRACEBACK_RESP_TAG, MPI_COMM_WORLD);
-    MPI_Send(&lenY, 1, MPI_INT, requester, TRACEBACK_RESP_TAG, MPI_COMM_WORLD);
-    MPI_Send(res.alignedY.c_str(), lenY, MPI_CHAR, requester, TRACEBACK_RESP_TAG, MPI_COMM_WORLD);
-    MPI_Send(&res.new_global_i, 1, MPI_INT, requester, TRACEBACK_RESP_TAG, MPI_COMM_WORLD);
-    MPI_Send(&res.new_j, 1, MPI_INT, requester, TRACEBACK_RESP_TAG, MPI_COMM_WORLD);
 }
 
 /**
@@ -487,7 +488,9 @@ void handleTracebackRequest(int chunkStart, int dpStart,
  * @param x Full first sequence.
  * @param y Full second sequence.
  */
-void localalign(const std::string &x, const std::string &y) {
+void localalign(const std::string &x, const std::string &y,
+                const std::string &header1, const std::string &header2,
+                const std::string &outdir, ScoreMode mode) {
     int m = x.size(), n = y.size();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -516,12 +519,11 @@ void localalign(const std::string &x, const std::string &y) {
         Loc thrBest{0,0,0};
         #pragma omp for
         for (int ii = 1; ii <= localRows; ++ii) {
-            int gi = start + ii - 1; // global index in x
+            int gi = start + ii - 1;
             curr[0] = 0;
             #pragma omp simd
             for (int j = 1; j <= n; ++j) {
-//                int ms = (x[gi] == y[j-1] ? MATCH : MISMATCH);
-                int ms = edna_score(x[gi], y[j-1]);
+                int ms = score(x[gi], y[j - 1], mode);
                 int v  = prev[j-1] + ms;
                 int u  = prev[j]   + GAP;
                 int l  = curr[j-1] + GAP;
@@ -582,8 +584,7 @@ void localalign(const std::string &x, const std::string &y) {
         std::vector<std::vector<int>> dp(I+1, std::vector<int>(J+1,0));
         for (int i = 1; i <= I; ++i) {
             for (int j = 1; j <= J; ++j) {
-//                int ms = (x[i-1]==y[j-1]?MATCH:MISMATCH);
-                int ms = edna_score(x[i-1], y[j-1]);
+                int ms = score(x[i - 1], y[j - 1], mode);
                 int v  = dp[i-1][j-1] + ms;
                 int u  = dp[i-1][j]   + GAP;
                 int l  = dp[i][j-1]   + GAP;
@@ -597,8 +598,7 @@ void localalign(const std::string &x, const std::string &y) {
         int i = I, j = J;
         while (i > 0 && j > 0 && dp[i][j] > 0) {
             int cur = dp[i][j];
-//            int ms  = (x[i-1]==y[j-1]?MATCH:MISMATCH);
-            int ms  = edna_score(x[i-1], y[j-1]);
+            int ms  = score(x[i - 1], y[j - 1], mode);
             if (cur == dp[i-1][j-1] + ms) {
                 alignedX.push_back(x[i-1]);
                 alignedY.push_back(y[j-1]);
@@ -651,19 +651,28 @@ void localalign(const std::string &x, const std::string &y) {
         }
         double identity = double(matches) / double(total);
         double coverage = double(total - gaps) / double(total);
+        std::string accession1 = getAccession(header1, mode);
+        std::string accession2 = getAccession(header2, mode);
 
-        std::cout << "\nLocal Alignment Score: " << bestScore << "\n";
+        std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
+
+        std::cout << "\n\nLocal Alignment Score: " << bestScore << "\n";
+
         printColoredAlignment(alignedX, alignedY);
-        ofstream outfile("local_alignment.txt");
+
+        std::ofstream outfile(outdir + "/" + modeDir + "/local_alignment.txt");
+
         if (outfile) {
-            outfile << "Local Alignment Score: " << bestScore << "\n\n";
+            outfile << "\nSequence 1: " << header1;
+            outfile << "\nSequence 2: " << header2;
+            outfile << "\n\nLocal Alignment Score: " << bestScore << "\n\n";
             savePlainAlignment(alignedX, alignedY, outfile);
             outfile.close();
         } else {
             cerr << "Error: Unable to open output file local_alignment.txt\n";
         }
 
-        ofstream js("local_stats.json");
+        ofstream js(outdir + "/" + modeDir + "/local_stats.json");
         if (js) {
           js << fixed << setprecision(6)
              << "{\n"
@@ -674,7 +683,9 @@ void localalign(const std::string &x, const std::string &y) {
              << "  \"total\":       " << total << ",\n"
              << "  \"identity\":    " << identity << ",\n"
              << "  \"coverage\":    " << coverage << ",\n"
-             << "  \"time_ms\":     " << time_ms << "\n"
+             << "  \"time_ms\":     " << time_ms << ",\n"
+             << "  \"query\":       \"" << accession1 << "\",\n"
+             << "  \"target\":      \"" << accession2 << "\"\n"
              << "}\n";
           js.close();
         } else {
@@ -693,7 +704,9 @@ void localalign(const std::string &x, const std::string &y) {
  * @param x First sequence.
  * @param y Second sequence.
  */
-void lcs(const string &x, const string &y) {
+void lcs(const string &x, const string &y,
+         const string &header1, const string &header2,
+         const std::string &outdir, ScoreMode mode) {
     const int m = x.size(), n = y.size();
     vector<int> prev(n+1), curr(n+1);
     vector<vector<char>> b(m+1, vector<char>(n+1,' '));
@@ -761,12 +774,18 @@ void lcs(const string &x, const string &y) {
         else                      { --j; }
     }
     reverse(lcs_str.begin(), lcs_str.end());
-
-    std::ofstream outfile ("lcs.txt");
+    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
+    std::ofstream outfile(outdir + "/" + modeDir + "/lcs.txt");
     cout << "\n\nLCS length: " << prev[n]
-         << "\n\nLCS: "        << lcs_str << "\n";
-    outfile << "\nLCS length: " << prev[n]
-         << "\n\nLCS: "        << lcs_str << "\n";
+         << "\n\nLCS: \n";
+    outfile << "\nSequence 1: " << header1
+            << "\nSequence 2: " << header2;
+    outfile << "\n\nLCS length: " << prev[n];
+    outfile << "\n\nLCS: \n";
+    for (size_t i = 0; i < lcs_str.length(); i += LINE_WIDTH) {
+        std::cout << lcs_str.substr(i, LINE_WIDTH) << "\n";
+        outfile << lcs_str.substr(i, LINE_WIDTH) << "\n";
+    }
     outfile.close();
 }
 
@@ -778,6 +797,7 @@ void lcs(const string &x, const string &y) {
  *  - method=1  → global alignment
  *  - method=2  → local alignment
  *  - method=3  → LCS
+ *  - --outdir <output_directory> (optional)
  *
  * @param argc Argument count.
  * @param argv Argument vector.
@@ -785,64 +805,100 @@ void lcs(const string &x, const string &y) {
  */
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
-
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     try {
         if (argc < 4) {
-            if (rank == 0)
-                cout << "Usage: " << argv[0] << " <fasta_file1> <fasta_file2> <method: 1=global, 2=local, 3=LCS>" << endl;
+            if (rank == 0) {
+                std::cout << "Usage: " << argv[0]
+                          << " <fasta_file1> <fasta_file2> <method: 1=global, 2=local, 3=LCS> "
+                          << "[--mode dna|protein] [--outdir <output_directory>]\n";
+            }
             MPI_Finalize();
             return 1;
         }
 
+        // Required arguments
+        std::string file1 = argv[1];
+        std::string file2 = argv[2];
+        int choice = std::atoi(argv[3]);
 
-        string seq1, seq2, header1, header2;
-        if (rank == 0) {
-            processFasta(argv[1], header1, seq1);
-            processFasta(argv[2], header2, seq2);
-            cout << "Sequence 1 Header: " << header1 << "\n";
-            cout << "Sequence 1 Length: " << seq1.size() << " bases\n";
-            cout << "Sequence 2 Header: " << header2 << "\n";
-            cout << "Sequence 2 Length: " << seq2.size() << " bases\n";
+        // Optional args
+        std::string outdir = ".";
+        ScoreMode mode = MODE_DNA;
+
+        for (int i = 4; i < argc; ++i) {
+            std::string arg = argv[i];
+            if (arg == "--mode" && i + 1 < argc) {
+                std::string val = argv[++i];
+                if (val == "dna") mode = MODE_DNA;
+                else if (val == "protein") mode = MODE_PROTEIN;
+                else {
+                    if (rank == 0) std::cerr << "Unknown mode: " << val << "\n";
+                    MPI_Finalize();
+                    return 1;
+                }
+            } else if (arg == "--outdir" && i + 1 < argc) {
+                outdir = argv[++i];
+            } else {
+                if (rank == 0) std::cerr << "Unknown option: " << arg << "\n";
+                MPI_Finalize();
+                return 1;
+            }
         }
 
-        int seq1_len = seq1.size(), seq2_len = seq2.size();
-        MPI_Bcast(&seq1_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&seq2_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        // Create output directory if needed
+        if (rank == 0) {
+            std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
+            std::filesystem::create_directories(outdir + "/" + modeDir);
+        }
+
+        // Read FASTA and broadcast
+        std::string seq1, seq2, header1, header2;
+        if (rank == 0) {
+            processFasta(file1, header1, seq1);
+            processFasta(file2, header2, seq2);
+            std::cout << "Sequence 1 Header: " << header1 << "\n";
+            std::cout << "Sequence 1 Length: " << seq1.size() << " bases\n";
+            std::cout << "Sequence 2 Header: " << header2 << "\n";
+            std::cout << "Sequence 2 Length: " << seq2.size() << " bases\n";
+        }
+
+        int len1 = seq1.size(), len2 = seq2.size();
+        MPI_Bcast(&len1, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&len2, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         if (rank != 0) {
-            seq1.resize(seq1_len);
-            seq2.resize(seq2_len);
+            seq1.resize(len1);
+            seq2.resize(len2);
         }
 
-        MPI_Bcast(&seq1[0], seq1_len, MPI_CHAR, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&seq2[0], seq2_len, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-        int choice = atoi(argv[3]);
+        MPI_Bcast(seq1.data(), len1, MPI_CHAR, 0, MPI_COMM_WORLD);
+        MPI_Bcast(seq2.data(), len2, MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Bcast(&choice, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+        // Dispatch
         switch (choice) {
             case 1:
                 if (rank == 0)
-                    globalalign(seq1, seq2);
+                    globalalign(seq1, seq2, header1, header2, outdir, mode);
                 break;
             case 2:
-                localalign(seq1, seq2);
+                localalign(seq1, seq2, header1, header2, outdir, mode);
                 break;
             case 3:
-                lcs(seq1, seq2);
+                if (rank == 0)
+                    lcs(seq1, seq2, header1, header2, outdir, mode);
                 break;
             default:
                 if (rank == 0)
-                    cout << "Invalid choice! Use 1 for global, 2 for local." << endl;
+                    std::cerr << "Invalid method. Use 1=global, 2=local, 3=LCS.\n";
         }
 
-    } catch (const exception &e) {
-        cerr << e.what() << endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
     }
-
 
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();

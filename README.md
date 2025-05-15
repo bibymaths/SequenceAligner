@@ -17,33 +17,7 @@ Please refer to [API Documentation](https://bibymaths.github.io/SequenceAligner/
 
 ---
 
-## Project Structure
-
-```
-
-./
-├── CMakeLists.txt         
-├── files/              
-│   ├── seq1.fasta
-│   ├── seq2.fasta
-│   └── seq3.fasta
-├── LICENSE      
-├── README.md        
-└── src/            
-├── main.cpp   
-
-````
-
----
-
 ## Getting Started
-
-### Prerequisites
-
-- A C++17-compatible compiler (e.g. `g++`, `clang++`)
-- CMake ≥ 3.10
-
----
 
 ### Installing OpenMPI for v2 and v3
 
@@ -123,9 +97,17 @@ This will compile an executable named `aligner` in the `build` directory:
 ### Usage
 
 ```bash
-./aligner <seq1.fasta> <seq2.fasta> <choice>
+./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir>
 ```
-
+where 
+- `<fasta1>`: Path to the first FASTA file. 
+- `<fasta2>`: Path to the second FASTA file.
+- `<choice>`: 
+  - `1` for Longest Common Subsequence (LCS)
+  - `2` for Global Alignment (Needleman-Wunsch)
+  - `3` for Local Alignment (Smith-Waterman) 
+- `--mode`: `dna` or `protein` (default: `dna`) 
+- `--outdir`: Directory to save the output files (default: `./`)
 ---
 
 ## Input Format

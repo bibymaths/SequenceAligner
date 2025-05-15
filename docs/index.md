@@ -17,19 +17,20 @@ This tool is optimized for command-line use with FASTA inputs and outputs colorf
 
 ## Command-Line Usage
 
+### Usage
+
 ```bash
-./aligner ../files/seq1.fasta ../files/seq2.fasta {1,2,3}
+./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir>
 ```
-
-Where:
-
-* First argument is the path to the first FASTA file.
-* Second argument is the path to the second FASTA file.
-* Third argument is the alignment type:
-
-  * `1`: Global
-  * `2`: Local
-  * `3`: LCS
+where 
+- `<fasta1>`: Path to the first FASTA file. 
+- `<fasta2>`: Path to the second FASTA file.
+- `<choice>`: 
+  - `1` for Longest Common Subsequence (LCS)
+  - `2` for Global Alignment (Needleman-Wunsch)
+  - `3` for Local Alignment (Smith-Waterman) 
+- `--mode`: `dna` or `protein` (default: `dna`) 
+- `--outdir`: Directory to save the output files (default: `./`)
 
 ---
 
