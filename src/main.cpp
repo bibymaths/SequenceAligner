@@ -28,6 +28,8 @@
 #include <unordered_map>
 #include <filesystem>
 #include <climits>
+
+bool verbose = false;
 using namespace std;
 enum ScoreMode { MODE_DNA, MODE_PROTEIN };
 
@@ -105,24 +107,53 @@ inline int score(char x, char y, ScoreMode mode) {
 }
 
 
-/**
- * @brief Display a textual progress bar on stdout.
- * @param progress Number of units completed so far.
- * @param total    Total number of units to complete.
+/** * @brief Show a progress bar in the console.
+ *
+ * @param progress Current progress (0 to total).
+ * @param total    Total number of steps.
  */
 void showProgressBar(int progress, int total) {
-    int barWidth = 50;
-    float percentage = (float)progress / total;
-    int pos = barWidth * percentage;
+    using namespace std::chrono;
 
-    cout << "[";
-    for (int i = 0; i < barWidth; ++i) {
-        if (i < pos) cout << "=";
-        else if (i == pos) cout << ">";
-        else cout << " ";
+    static auto start_time = steady_clock::now();
+    auto now     = steady_clock::now();
+    auto elapsed = duration_cast<seconds>(now - start_time).count();
+
+    // compute ETA in seconds
+    long eta = 0;
+    if (progress > 0 && progress < total) {
+        eta = elapsed * (total - progress) / progress;
     }
-    cout << "] " << int(percentage * 100.0) << "%\r";
-    cout.flush();
+
+    // format elapsed and ETA as H:MM:SS
+    auto format_hms = [](long secs) {
+        long h = secs / 3600;
+        long m = (secs % 3600) / 60;
+        long s = secs % 60;
+        std::ostringstream os;
+        if (h) os << h << ":";
+        os << std::setw(2) << std::setfill('0') << m << ":"
+           << std::setw(2) << std::setfill('0') << s;
+        return os.str();
+    };
+
+    constexpr int barWidth = 100;
+    float ratio = float(progress) / total;
+    int pos = int(barWidth * ratio);
+
+    // render bar
+    std::cout << "\r[";
+    for (int i = 0; i < barWidth; ++i) {
+        if      (i < pos)  std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else               std::cout << " ";
+    }
+    std::cout << "] "
+              << std::setw(3) << int(ratio * 100) << "% "
+              << progress << "/" << total
+              << " Elapsed: " << format_hms(elapsed)
+              << " ETA: "     << format_hms(eta)
+              << std::flush;
 }
 
 /**
@@ -153,6 +184,54 @@ std::string getAccession(const std::string& header, ScoreMode mode) {
     // If neither mode matches, return the header as is
     return header;
 }
+
+/**
+ * @brief Extract the gene symbol from a FASTA header.
+ *
+ * For DNA headers, looks for the first pair of parentheses “(GENE)” and returns GENE.
+ * For protein headers, takes the part after the second ‘|’ up to the first underscore.
+ *
+ * @param header The FASTA header line (without the leading '>').
+ * @param mode   MODE_DNA or MODE_PROTEIN.
+ * @return       The gene symbol, or an empty string on failure.
+ */
+std::string getGeneSymbol(const std::string& header, ScoreMode mode) {
+    if (mode == MODE_DNA) {
+
+        size_t open  = header.find('(');
+        size_t close = (open != std::string::npos) ? header.find(')', open + 1) : std::string::npos;
+        if (open != std::string::npos && close != std::string::npos && close > open + 1) {
+            return header.substr(open + 1, close - open - 1);
+        }
+        // fallback: no parentheses found
+        return "";
+    }
+    else if (mode == MODE_PROTEIN) {
+
+        size_t firstPipe  = header.find('|');
+        size_t secondPipe = (firstPipe != std::string::npos)
+                            ? header.find('|', firstPipe + 1)
+                            : std::string::npos;
+        if (secondPipe != std::string::npos) {
+            size_t underscore = header.find('_', secondPipe + 1);
+            if (underscore != std::string::npos && underscore > secondPipe + 1) {
+                return header.substr(secondPipe + 1, underscore - secondPipe - 1);
+            }
+        }
+        // fallback: try GN= field
+        size_t gnPos = header.find("GN=");
+        if (gnPos != std::string::npos) {
+            size_t start = gnPos + 3;
+            size_t end   = header.find_first_of(" ;", start);
+            if (end == std::string::npos) end = header.size();
+            if (end > start) return header.substr(start, end - start);
+        }
+        return "";
+    }
+    // unknown mode
+    return "";
+}
+
 
 /**
  * @brief Read the first record from a FASTA file.
@@ -308,6 +387,7 @@ void computeAffineDPRow(int i,
                         vector<int>& curr_gapX,
                         vector<int>& curr_gapY)
 {
+    (void)prev_gapY;
     int n = y.size();
     curr_row .assign(n+1, INT_MIN/2);
     curr_gapX.assign(n+1, INT_MIN/2);
@@ -355,7 +435,7 @@ void globalalign(const string &x, const string &y,
     int m = x.size(), n = y.size();
 
     vector<int> prev_row, prev_gapX, prev_gapY;
-    initAffineDP(n, prev_row, prev_gapX, prev_gapY, /*isGlobal=*/true);
+    initAffineDP(n, prev_row, prev_gapX, prev_gapY, true);
     vector<int> curr_row, curr_gapX, curr_gapY;
 
     vector<char> prev_trace(n + 1, '0');
@@ -372,15 +452,14 @@ void globalalign(const string &x, const string &y,
           prev_gapX.swap(curr_gapX);
           prev_gapY.swap(curr_gapY);
 
-        if (i % 1000 == 0 || i == m) {
+        if (verbose) { if (i % 1000 == 0 || i == m) {
             showProgressBar(i, m);
-        }
+        }}
     }
 
     // Traceback
     string alignedX, alignedY;
     int i = m, j = n;
-    vector<char> *curr_trace_ptr = &prev_trace, *prev_trace_ptr = &curr_trace;
 
     while (i > 0 || j > 0) {
         if (i == 0) {
@@ -438,18 +517,34 @@ void globalalign(const string &x, const string &y,
     std::string accession1 = getAccession(header1, mode);
     std::string accession2 = getAccession(header2, mode);
 
+    std::string gene1 = getGeneSymbol(header1, mode);
+    std::string gene2 = getGeneSymbol(header2, mode);
+
     reverse(alignedX.begin(), alignedX.end());
     reverse(alignedY.begin(), alignedY.end());
 
     std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
 
-    cout << "\n\nGlobal Alignment Score: " << prev_row[n] << endl;
+    if (verbose) {
+        cout << "\n\nGlobal Alignment Score: " << prev_row[n] << "\n";
+        cout << "Matches: " << matches << "\n";
+        cout << "Gaps:    " << gaps << "\n";
+        cout << "Total:   " << total << "\n";
+        cout << "Identity: " << identity * 100.0f << "%\n";
+        cout << "Coverage: " << coverage * 100.0f << "%\n";
+        cout << "Time:    " << time_ms << " ms\n";
+        cout << "Query:   " << accession1 << "\n";
+        cout << "Target:  " << accession2 << "\n";
+        cout << "QueryID:  " << gene1 << "\n";
+        cout << "TargetID:  " << gene2 << "\n";
+        printColoredAlignment(alignedX, alignedY);
+    }
+
     std::ofstream outfile(outdir + "/" + modeDir + "/global_alignment.txt");
     if (outfile) {
         outfile << "\nSequence 1: " << header1;
         outfile << "\nSequence 2: " << header2;
         outfile << "\n\nGlobal Alignment Score: " << prev_row[n] << "\n\n";
-        printColoredAlignment(alignedX, alignedY);
         savePlainAlignment(alignedX, alignedY, outfile);
         outfile.close();
     } else {
@@ -469,7 +564,9 @@ void globalalign(const string &x, const string &y,
          << "  \"coverage\":    " << coverage << ",\n"
          << "  \"time_ms\":     " << time_ms << ",\n"
          << "  \"query\":       \"" << accession1 << "\",\n"
-         << "  \"target\":      \"" << accession2 << "\"\n"
+         << "  \"target\":      \"" << accession2 << "\",\n"
+         << "  \"queryid\":       \"" << gene1 << "\",\n"
+         << "  \"targetid\":       \"" << gene2 << "\"\n"
          << "}\n";
       js.close();
     } else {
@@ -534,8 +631,11 @@ void localalign(const std::string &x, const std::string &y,
                 curr[j] = s;
                 if (s > thrBest.score) thrBest = { s, gi, j };
             }
-            if (rank == 0 && (ii % 1000 == 0 || ii == localRows))
-                showProgressBar(ii, localRows);
+            if (verbose) {
+                if (ii % 1000 == 0 || ii == localRows) {
+                    showProgressBar(ii, localRows);
+                }
+            }
             std::swap(prev, curr);
         }
         #pragma omp critical
@@ -651,17 +751,28 @@ void localalign(const std::string &x, const std::string &y,
         }
         double identity = double(matches) / double(total);
         double coverage = double(total - gaps) / double(total);
+
         std::string accession1 = getAccession(header1, mode);
         std::string accession2 = getAccession(header2, mode);
-
+        std::string gene1 = getGeneSymbol(header1, mode);
+        std::string gene2 = getGeneSymbol(header2, mode);
         std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
 
-        std::cout << "\n\nLocal Alignment Score: " << bestScore << "\n";
-
-        printColoredAlignment(alignedX, alignedY);
-
+        if (verbose) {
+            std::cout << "\n\nLocal Alignment Score: " << bestScore << "\n";
+            std::cout << "Matches: " << matches << "\n";
+            std::cout << "Gaps:    " << gaps << "\n";
+            std::cout << "Total:   " << total << "\n";
+            std::cout << "Identity: " << identity * 100.0f << "%\n";
+            std::cout << "Coverage: " << coverage * 100.0f << "%\n";
+            cout << "Time:    " << time_ms << " ms\n";
+            cout << "Query:   " << accession1 << "\n";
+            cout << "Target:  " << accession2 << "\n";
+            cout << "QueryID:  " << gene1 << "\n";
+            cout << "TargetID:  " << gene2 << "\n";
+            printColoredAlignment(alignedX, alignedY);
+        }
         std::ofstream outfile(outdir + "/" + modeDir + "/local_alignment.txt");
-
         if (outfile) {
             outfile << "\nSequence 1: " << header1;
             outfile << "\nSequence 2: " << header2;
@@ -685,7 +796,9 @@ void localalign(const std::string &x, const std::string &y,
              << "  \"coverage\":    " << coverage << ",\n"
              << "  \"time_ms\":     " << time_ms << ",\n"
              << "  \"query\":       \"" << accession1 << "\",\n"
-             << "  \"target\":      \"" << accession2 << "\"\n"
+             << "  \"target\":      \"" << accession2 << "\",\n"
+             << "  \"queryid\":       \"" << gene1 << "\",\n"
+             << "  \"targetid\":       \"" << gene2 << "\"\n"
              << "}\n";
           js.close();
         } else {
@@ -760,7 +873,8 @@ void lcs(const string &x, const string &y,
             #pragma omp single
             {
                 swap(prev, curr);
-                if (i % 1000 == 0 || i == m) showProgressBar(i, m);
+                if (verbose) {if (i % 1000 == 0 || i == m) showProgressBar(i, m);
+                }
             }
         }
     }
@@ -776,14 +890,17 @@ void lcs(const string &x, const string &y,
     reverse(lcs_str.begin(), lcs_str.end());
     std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
     std::ofstream outfile(outdir + "/" + modeDir + "/lcs.txt");
-    cout << "\n\nLCS length: " << prev[n]
-         << "\n\nLCS: \n";
+    if (verbose) {
+        std::cout << "\n\nLCS length: " << prev[n] << "\n\nLCS: \n";
+    }
     outfile << "\nSequence 1: " << header1
             << "\nSequence 2: " << header2;
     outfile << "\n\nLCS length: " << prev[n];
     outfile << "\n\nLCS: \n";
     for (size_t i = 0; i < lcs_str.length(); i += LINE_WIDTH) {
-        std::cout << lcs_str.substr(i, LINE_WIDTH) << "\n";
+        if (verbose) {
+            std::cout << lcs_str.substr(i, LINE_WIDTH) << "\n";
+        }
         outfile << lcs_str.substr(i, LINE_WIDTH) << "\n";
     }
     outfile.close();
@@ -798,12 +915,13 @@ void lcs(const string &x, const string &y,
  *  - method=2  → local alignment
  *  - method=3  → LCS
  *  - --outdir <output_directory> (optional)
- *
+ *  - --mode <dna|protein> (optional, default: dna)
  * @param argc Argument count.
  * @param argv Argument vector.
  * @return     0 on success, nonzero on failure.
  */
 int main(int argc, char** argv) {
+
     MPI_Init(&argc, &argv);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -811,15 +929,20 @@ int main(int argc, char** argv) {
     try {
         if (argc < 4) {
             if (rank == 0) {
-                std::cout << "Usage: " << argv[0]
-                          << " <fasta_file1> <fasta_file2> <method: 1=global, 2=local, 3=LCS> "
-                          << "[--mode dna|protein] [--outdir <output_directory>]\n";
+                std::cout <<
+                    "Usage: " << argv[0] << " <fasta_file1> <fasta_file2> <method>\n"
+                    "  method: 1=global, 2=local, 3=LCS\n"
+                    "Options:\n"
+                    "  --mode <dna|protein>     Scoring mode (default: dna)\n"
+                    "  --outdir <directory>     Output directory (default: .)\n"
+                    "  --verbose                Print progress and debug info\n"
+                    "  --help                   Show this help message\n";
             }
             MPI_Finalize();
             return 1;
         }
 
-        // Required arguments
+        // Now it's safe to use argv[1]..argv[3]
         std::string file1 = argv[1];
         std::string file2 = argv[2];
         int choice = std::atoi(argv[3]);
@@ -841,12 +964,15 @@ int main(int argc, char** argv) {
                 }
             } else if (arg == "--outdir" && i + 1 < argc) {
                 outdir = argv[++i];
+            } else if (arg == "--verbose") {
+                verbose = true;
             } else {
                 if (rank == 0) std::cerr << "Unknown option: " << arg << "\n";
                 MPI_Finalize();
                 return 1;
             }
         }
+
 
         // Create output directory if needed
         if (rank == 0) {
@@ -859,6 +985,8 @@ int main(int argc, char** argv) {
         if (rank == 0) {
             processFasta(file1, header1, seq1);
             processFasta(file2, header2, seq2);
+        }
+        if (verbose && rank == 0) {
             std::cout << "Sequence 1 Header: " << header1 << "\n";
             std::cout << "Sequence 1 Length: " << seq1.size() << " bases\n";
             std::cout << "Sequence 2 Header: " << header2 << "\n";

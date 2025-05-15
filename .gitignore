@@ -5,7 +5,8 @@
 build/
 
 # Results directories
-results/
+results*/
+aligner
 
 # Compiled Object files
 *.slomake

@@ -20,7 +20,7 @@ This tool is optimized for command-line use with FASTA inputs and outputs colorf
 ### Usage
 
 ```bash
-./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir>
+./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir> --verbose
 ```
 where 
 - `<fasta1>`: Path to the first FASTA file. 
@@ -30,7 +30,8 @@ where
   - `2` for Global Alignment (Needleman-Wunsch)
   - `3` for Local Alignment (Smith-Waterman) 
 - `--mode`: `dna` or `protein` (default: `dna`) 
-- `--outdir`: Directory to save the output files (default: `./`)
+- `--outdir`: Directory to save the output files (default: `./`) 
+- `--verbose`: Optional flag to enable verbose output.
 
 ---
 

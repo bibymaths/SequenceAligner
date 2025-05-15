@@ -86,9 +86,10 @@ cd SequenceAligner
 mkdir build && cd build
 cmake ..
 make
+cd ..
 ```
 
-This will compile an executable named `aligner` in the `build` directory:
+This will compile an executable named `aligner` in the project's directory:
 
 * `aligner` → builds from `src/main.cpp`
 
@@ -97,7 +98,7 @@ This will compile an executable named `aligner` in the `build` directory:
 ### Usage
 
 ```bash
-./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir>
+./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir> --verbose
 ```
 where 
 - `<fasta1>`: Path to the first FASTA file. 
@@ -107,7 +108,8 @@ where
   - `2` for Global Alignment (Needleman-Wunsch)
   - `3` for Local Alignment (Smith-Waterman) 
 - `--mode`: `dna` or `protein` (default: `dna`) 
-- `--outdir`: Directory to save the output files (default: `./`)
+- `--outdir`: Directory to save the output files (default: `./`) 
+- `--verbose`: Optional flag to enable verbose output.
 ---
 
 ## Input Format
