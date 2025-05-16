@@ -15,13 +15,11 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
-#include <bitset>
 #include <algorithm>
 #include <stdexcept>
 #include <omp.h>
 #include <immintrin.h>
 #include <mpi.h>
-#include <cstdint>
 #include <sstream>
 #include "EDNAFULL.h"
 #include "EBLOSUM62.h"
@@ -34,9 +32,8 @@ using namespace std;
 enum ScoreMode { MODE_DNA, MODE_PROTEIN };
 
 /// Gap penalty
-static const int GAP      = -2;    // penalty for a gap in local alignment
-static const int GAP_OPEN   = -1;  // penalty to open a gap in global alignment
-static const double GAP_EXTEND = -0.5;  // penalty to extend an existing gap in global alignment
+double GAP_OPEN   = -5.0;  // penalty to open a gap
+double GAP_EXTEND = -1.0;  // penalty to extend an existing gap in global alignment
 /// Number of columns per line when printing alignments
 static const int LINE_WIDTH = 120;
 
@@ -333,6 +330,31 @@ void printColoredAlignment(const string &seq1, const string &seq2, ostream &os =
     }
 }
 
+/**
+ * @brief Write the DP matrix to a file.
+ *
+ * @param dp       The DP matrix (2D vector).
+ * @param filename The output filename.
+ */
+void writeDPMatrix(const std::vector<std::vector<int>>& dp, const std::string& filename) {
+    std::ofstream out(filename);
+    if (!out) {
+        std::cerr << "Error: Cannot write DP matrix to " << filename << "\n";
+        return;
+    }
+
+    for (const auto& row : dp) {
+        for (size_t j = 0; j < row.size(); ++j) {
+            out << std::setw(5) << row[j];
+            if (j != row.size() - 1) out << " ";
+        }
+        out << "\n";
+    }
+
+    out.close();
+}
+
+
 /* * @brief Initialize the DP row and gap arrays for affine gap scoring.
  *
  * @param n         Length of the second sequence (Y).
@@ -475,8 +497,8 @@ void globalalign(const string &x, const string &y,
 
         int matchScore = score(x[i - 1], y[j - 1], mode);
         int diag = prev_row[j - 1] + matchScore;
-        int up = prev_row[j] + GAP;
-        int left = curr_row[j - 1] + GAP;
+        int up = prev_row[j] + GAP_OPEN;
+        int left = curr_row[j - 1] + GAP_OPEN;
 
         int score = max({diag, up, left});
         curr_row[j] = score;
@@ -622,8 +644,8 @@ void localalign(const std::string &x, const std::string &y,
             for (int j = 1; j <= n; ++j) {
                 int ms = score(x[gi], y[j - 1], mode);
                 int v  = prev[j-1] + ms;
-                int u  = prev[j]   + GAP;
-                int l  = curr[j-1] + GAP;
+                int u  = prev[j]   + GAP_OPEN;
+                int l  = curr[j-1] + GAP_OPEN;
                 int s  = v;
                 if (u > s) s = u;
                 if (l > s) s = l;
@@ -677,6 +699,8 @@ void localalign(const std::string &x, const std::string &y,
     MPI_Bcast(&bestI,     1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&bestJ,     1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
+
     // traceback on the winning rank
     std::string alignedX, alignedY;
     if (rank == bestRank) {
@@ -686,8 +710,8 @@ void localalign(const std::string &x, const std::string &y,
             for (int j = 1; j <= J; ++j) {
                 int ms = score(x[i - 1], y[j - 1], mode);
                 int v  = dp[i-1][j-1] + ms;
-                int u  = dp[i-1][j]   + GAP;
-                int l  = dp[i][j-1]   + GAP;
+                int u  = dp[i-1][j]   + GAP_OPEN;
+                int l  = dp[i][j-1]   + GAP_OPEN;
                 int s  = v;
                 if (u > s) s = u;
                 if (l > s) s = l;
@@ -695,6 +719,9 @@ void localalign(const std::string &x, const std::string &y,
                 dp[i][j] = s;
             }
         }
+        std::string dpfile = outdir + "/" + modeDir + "/local_dp_matrix.txt";
+        writeDPMatrix(dp, dpfile);
+
         int i = I, j = J;
         while (i > 0 && j > 0 && dp[i][j] > 0) {
             int cur = dp[i][j];
@@ -704,7 +731,7 @@ void localalign(const std::string &x, const std::string &y,
                 alignedY.push_back(y[j-1]);
                 --i; --j;
             }
-            else if (cur == dp[i-1][j] + GAP) {
+            else if (cur == dp[i-1][j] + GAP_OPEN) {
                 alignedX.push_back(x[i-1]);
                 alignedY.push_back('-');
                 --i;
@@ -756,7 +783,6 @@ void localalign(const std::string &x, const std::string &y,
         std::string accession2 = getAccession(header2, mode);
         std::string gene1 = getGeneSymbol(header1, mode);
         std::string gene2 = getGeneSymbol(header2, mode);
-        std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
 
         if (verbose) {
             std::cout << "\n\nLocal Alignment Score: " << bestScore << "\n";
@@ -772,7 +798,9 @@ void localalign(const std::string &x, const std::string &y,
             cout << "TargetID:  " << gene2 << "\n";
             printColoredAlignment(alignedX, alignedY);
         }
+
         std::ofstream outfile(outdir + "/" + modeDir + "/local_alignment.txt");
+
         if (outfile) {
             outfile << "\nSequence 1: " << header1;
             outfile << "\nSequence 2: " << header2;
@@ -805,6 +833,20 @@ void localalign(const std::string &x, const std::string &y,
           cerr << "Error: cannot open local_stats.json\n";
         }
 
+    }
+}
+
+/**
+ * @brief Write a character matrix to a file.
+ *
+ * @param mat      The character matrix (2D vector).
+ * @param filename The output filename.
+ */
+void writeCharMatrix(const std::vector<std::vector<char>>& mat, const std::string& filename) {
+    std::ofstream out(filename);
+    for (const auto& row : mat) {
+        for (char c : row) out << c << ' ';
+        out << '\n';
     }
 }
 
@@ -888,8 +930,11 @@ void lcs(const string &x, const string &y,
         else                      { --j; }
     }
     reverse(lcs_str.begin(), lcs_str.end());
+
     std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
     std::ofstream outfile(outdir + "/" + modeDir + "/lcs.txt");
+    writeCharMatrix(b, outdir + "/" + modeDir + "/lcs_traceback.txt");
+
     if (verbose) {
         std::cout << "\n\nLCS length: " << prev[n] << "\n\nLCS: \n";
     }
@@ -908,89 +953,74 @@ void lcs(const string &x, const string &y,
 
 
 /**
- * @brief Program entry point: read arguments, load FASTA, dispatch chosen method.
- *
- * Usage: `aligner <fasta1> <fasta2> <method>`
- *  - method=1  → global alignment
- *  - method=2  → local alignment
- *  - method=3  → LCS
- *  - --outdir <output_directory> (optional)
- *  - --mode <dna|protein> (optional, default: dna)
- * @param argc Argument count.
- * @param argv Argument vector.
- * @return     0 on success, nonzero on failure.
- */
+* @brief Program entry point: read arguments, load FASTA, dispatch chosen method.
+*
+* @param argc Number of command-line arguments.
+* @param argv Command-line arguments.
+* @return 0 on success, non-zero on error.
+*/
 int main(int argc, char** argv) {
-
     MPI_Init(&argc, &argv);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     try {
-        if (argc < 4) {
-            if (rank == 0) {
-                std::cout <<
-                    "Usage: " << argv[0] << " <fasta_file1> <fasta_file2> <method>\n"
-                    "  method: 1=global, 2=local, 3=LCS\n"
-                    "Options:\n"
-                    "  --mode <dna|protein>     Scoring mode (default: dna)\n"
-                    "  --outdir <directory>     Output directory (default: .)\n"
-                    "  --verbose                Print progress and debug info\n"
-                    "  --help                   Show this help message\n";
-            }
-            MPI_Finalize();
-            return 1;
-        }
-
-        // Now it's safe to use argv[1]..argv[3]
-        std::string file1 = argv[1];
-        std::string file2 = argv[2];
-        int choice = std::atoi(argv[3]);
-
-        // Optional args
-        std::string outdir = ".";
+        std::string file1, file2, outdir = ".";
+        int choice = -1;
         ScoreMode mode = MODE_DNA;
 
-        for (int i = 4; i < argc; ++i) {
+        // Parse arguments
+        for (int i = 1; i < argc; ++i) {
             std::string arg = argv[i];
-            if (arg == "--mode" && i + 1 < argc) {
+            if (arg == "--query" && i + 1 < argc) {
+                file1 = argv[++i];
+            } else if (arg == "--target" && i + 1 < argc) {
+                file2 = argv[++i];
+            } else if (arg == "--choice" && i + 1 < argc) {
+                choice = std::stoi(argv[++i]);
+            } else if (arg == "--mode" && i + 1 < argc) {
                 std::string val = argv[++i];
                 if (val == "dna") mode = MODE_DNA;
                 else if (val == "protein") mode = MODE_PROTEIN;
                 else {
                     if (rank == 0) std::cerr << "Unknown mode: " << val << "\n";
-                    MPI_Finalize();
-                    return 1;
+                    MPI_Finalize(); return 1;
                 }
             } else if (arg == "--outdir" && i + 1 < argc) {
                 outdir = argv[++i];
             } else if (arg == "--verbose") {
                 verbose = true;
+            } else if (arg == "--help") {
+                if (rank == 0) {
+                    std::cout <<
+                      "Usage: ./aligner --query <file1> --target <file2> --choice <1|2|3|4> [--mode dna|protein] [--outdir DIR] [--verbose]\n"
+                      "  --choice: 1=global, 2=local, 3=LCS, 4=all\n";
+                }
+                MPI_Finalize(); return 0;
+            } else if (arg == "--gap_open" && i + 1 < argc) {
+                 GAP_OPEN = std::stod(argv[++i]);
+            } else if (arg == "--gap_extend" && i + 1 < argc) {
+                 GAP_EXTEND = std::stod(argv[++i]);
             } else {
                 if (rank == 0) std::cerr << "Unknown option: " << arg << "\n";
-                MPI_Finalize();
-                return 1;
+                MPI_Finalize(); return 1;
             }
         }
 
-
-        // Create output directory if needed
-        if (rank == 0) {
-            std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
-            std::filesystem::create_directories(outdir + "/" + modeDir);
+        if (file1.empty() || file2.empty() || choice == -1) {
+            if (rank == 0)
+                std::cerr << "Missing required arguments: --query, --target, --choice\n";
+            MPI_Finalize(); return 1;
         }
 
-        // Read FASTA and broadcast
+        if (rank == 0) {
+            std::filesystem::create_directories(outdir + "/" + (mode == MODE_DNA ? "dna" : "protein"));
+        }
+
         std::string seq1, seq2, header1, header2;
         if (rank == 0) {
             processFasta(file1, header1, seq1);
             processFasta(file2, header2, seq2);
-        }
-        if (verbose && rank == 0) {
-            std::cout << "Sequence 1 Header: " << header1 << "\n";
-            std::cout << "Sequence 1 Length: " << seq1.size() << " bases\n";
-            std::cout << "Sequence 2 Header: " << header2 << "\n";
-            std::cout << "Sequence 2 Length: " << seq2.size() << " bases\n";
         }
 
         int len1 = seq1.size(), len2 = seq2.size();
@@ -1004,24 +1034,18 @@ int main(int argc, char** argv) {
 
         MPI_Bcast(seq1.data(), len1, MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Bcast(seq2.data(), len2, MPI_CHAR, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&choice, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-        // Dispatch
-        switch (choice) {
-            case 1:
-                if (rank == 0)
-                    globalalign(seq1, seq2, header1, header2, outdir, mode);
-                break;
-            case 2:
-                localalign(seq1, seq2, header1, header2, outdir, mode);
-                break;
-            case 3:
-                if (rank == 0)
-                    lcs(seq1, seq2, header1, header2, outdir, mode);
-                break;
-            default:
-                if (rank == 0)
-                    std::cerr << "Invalid method. Use 1=global, 2=local, 3=LCS.\n";
+        if (choice == 1 && rank == 0) globalalign(seq1, seq2, header1, header2, outdir, mode);
+        else if (choice == 2) localalign(seq1, seq2, header1, header2, outdir, mode);
+        else if (choice == 3 && rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
+        else if (choice == 4) {
+            if (rank == 0) globalalign(seq1, seq2, header1, header2, outdir, mode);
+            MPI_Barrier(MPI_COMM_WORLD);
+            localalign(seq1, seq2, header1, header2, outdir, mode);
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
+        } else if (rank == 0) {
+            std::cerr << "Invalid method. Use --choice 1/2/3/4.\n";
         }
 
     } catch (const std::exception& e) {

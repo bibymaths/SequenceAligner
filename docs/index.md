@@ -20,18 +20,22 @@ This tool is optimized for command-line use with FASTA inputs and outputs colorf
 ### Usage
 
 ```bash
-./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir> --verbose
+./aligner --query <query.fasta> --target <target.fasta> --choice <1|2|3|4> [--mode dna|protein] [--outdir <directory>] [--verbose]
 ```
-where 
-- `<fasta1>`: Path to the first FASTA file. 
-- `<fasta2>`: Path to the second FASTA file.
-- `<choice>`: 
-  - `1` for Longest Common Subsequence (LCS)
-  - `2` for Global Alignment (Needleman-Wunsch)
-  - `3` for Local Alignment (Smith-Waterman) 
-- `--mode`: `dna` or `protein` (default: `dna`) 
-- `--outdir`: Directory to save the output files (default: `./`) 
-- `--verbose`: Optional flag to enable verbose output.
+
+### Where:
+
+* `--query` specifies the first input FASTA file.
+* `--target` specifies the second input FASTA file.
+* `--choice` selects the alignment method:
+
+  * `1` = global
+  * `2` = local
+  * `3` = LCS
+  * `4` = all methods
+* `--mode` (optional) sets scoring mode: `dna` (default) or `protein`.
+* `--outdir` (optional) sets the output directory (default is current directory).
+* `--verbose` (optional) enables progress and detailed output.
 
 ---
 

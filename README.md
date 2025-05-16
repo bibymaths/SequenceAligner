@@ -127,20 +127,54 @@ This will compile an executable named `aligner` in the project's directory:
 ---
 
 ### Usage
+ 
+To run on cluster or server with OpenMPI, use the following command: 
 
 ```bash
-./aligner <fasta1> <fasta2> <choice> --mode <mode> --outdir <outdir> --verbose
+mpirun -np <num_processes> ./aligner \
+  --query <query.fasta> \
+  --target <target.fasta> \
+  --choice <1|2|3|4> \
+  --mode <dna|protein> \
+  [--outdir <output_directory>] \
+  [--gap_open <float>] \
+  [--gap_extend <float>] \
+  [--verbose]
+``` 
+ 
+**Note**: Use `mpirun` when you want performance via parallelism—especially for long sequences or many alignments.  
+It can run on multiple CPU cores or even multiple nodes if configured 
+ 
+To run on local machine, use the following command:
+
+```bash 
+./aligner \
+  --query <query.fasta> \
+  --target <target.fasta> \
+  --choice <1|2|3|4> \
+  --mode <dna|protein> \
+  [--outdir <output_directory>] \
+  [--gap_open <float>] \
+  [--gap_extend <float>] \
+  [--verbose]
 ```
-where 
-- `<fasta1>`: Path to the first FASTA file. 
-- `<fasta2>`: Path to the second FASTA file.
-- `<choice>`: 
-  - `1` for Longest Common Subsequence (LCS)
-  - `2` for Global Alignment (Needleman-Wunsch)
-  - `3` for Local Alignment (Smith-Waterman) 
-- `--mode`: `dna` or `protein` (default: `dna`) 
-- `--outdir`: Directory to save the output files (default: `./`) 
-- `--verbose`: Optional flag to enable verbose output.
+
+---
+
+### **Explanation of Options**
+
+| Option                | Description                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `--query`             | Path to the query FASTA file                                                       |
+| `--target`            | Path to the target FASTA file                                                      |
+| `--choice`            | Alignment method: <br> `1 = global` <br> `2 = local` <br> `3 = LCS` <br> `4 = all` |
+| `--mode`              | Scoring mode: `dna` (uses EDNAFULL) or `protein` (uses BLOSUM62)                   |
+| `--outdir` *(opt)*    | Output directory (default is current directory `.`)                                |
+| `--gap_open` *(opt)*  | Gap opening penalty (default: `-5.0`)                                              |
+| `--gap_extend`\*(opt) | Gap extension penalty (default: `-1.0`)                                            |
+| `--verbose` *(opt)*   | Show colored alignment and progress bars                                           |
+| `--help`              | Show help and usage instructions                                                   |
+
 ---
 
 ## Input Format
