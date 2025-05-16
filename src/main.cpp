@@ -36,7 +36,7 @@ enum ScoreMode { MODE_DNA, MODE_PROTEIN };
 /// Gap penalty
 static const int GAP      = -2;    // penalty for a gap in local alignment
 static const int GAP_OPEN   = -1;  // penalty to open a gap in global alignment
-static const int GAP_EXTEND = -0.5;  // penalty to extend an existing gap in global alignment
+static const double GAP_EXTEND = -0.5;  // penalty to extend an existing gap in global alignment
 /// Number of columns per line when printing alignments
 static const int LINE_WIDTH = 120;
 

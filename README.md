@@ -66,7 +66,8 @@ sudo apt install libopenmpi-dev
 Install using Homebrew:
 
 ```bash
-brew install openmpi
+brew install openmpi 
+brew install llvm
 ```
 
 ---
@@ -80,6 +81,7 @@ For official documentation, see:
  
 Each version implements the same interface. Choose the appropriate binary based on the features or optimizations you want to test. 
 
+For Debian/Ubuntu, Fedora, and the following commands will build the project:
 ```bash
 git clone https://github.com/yourusername/SequenceAligner.git
 cd SequenceAligner
@@ -89,6 +91,35 @@ make
 cd ..
 ```
 
+For macOS (Intel Chip), you can use the following commands:
+```bash 
+git clone https://github.com/yourusername/SequenceAligner.git
+cd SequenceAligner
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_C_COMPILER=/usr/local/opt/llvm/bin/clang \
+  -DCMAKE_CXX_COMPILER=/usr/local/opt/llvm/bin/clang++ \
+  -DCMAKE_C_FLAGS="-Xpreprocessor -fopenmp -I/usr/local/opt/llvm/include" \
+  -DCMAKE_CXX_FLAGS="-Xpreprocessor -fopenmp -I/usr/local/opt/llvm/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/opt/llvm/lib -lomp"
+make
+cd ..
+``` 
+ 
+For macOS (Apple Silicon), you can use the following commands:
+```bash 
+git clone https://github.com/yourusername/SequenceAligner.git
+cd SequenceAligner
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
+  -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
+  -DCMAKE_C_FLAGS="-Xpreprocessor -fopenmp -I/opt/homebrew/opt/llvm/include" \
+  -DCMAKE_CXX_FLAGS="-Xpreprocessor -fopenmp -I/opt/homebrew/opt/llvm/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/opt/llvm/lib -lomp"
+make
+cd ..
+```
 This will compile an executable named `aligner` in the project's directory:
 
 * `aligner` → builds from `src/main.cpp`
