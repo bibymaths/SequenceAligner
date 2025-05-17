@@ -458,6 +458,10 @@ void globalalign(const string &x, const string &y,
 
     vector<int> prev_row, prev_gapX, prev_gapY;
     initAffineDP(n, prev_row, prev_gapX, prev_gapY, true);
+
+    vector<vector<int>> fullDP(m+1, vector<int>(n+1));
+    fullDP[0] = prev_row;
+
     vector<int> curr_row, curr_gapX, curr_gapY;
 
     vector<char> prev_trace(n + 1, '0');
@@ -474,16 +478,23 @@ void globalalign(const string &x, const string &y,
           prev_gapX.swap(curr_gapX);
           prev_gapY.swap(curr_gapY);
 
+          // save row i into the full matrix
+          fullDP[i] = prev_row;
+
         if (verbose) { if (i % 1000 == 0 || i == m) {
             showProgressBar(i, m);
         }}
     }
 
+    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
+    writeDPMatrix(fullDP, outdir + "/" + modeDir + "/global_dp_matrix.txt");
+
+
     // Traceback
     string alignedX, alignedY;
     int i = m, j = n;
-
     while (i > 0 || j > 0) {
+        // at a corner
         if (i == 0) {
             alignedX += '-';
             alignedY += y[--j];
@@ -494,34 +505,22 @@ void globalalign(const string &x, const string &y,
             alignedY += '-';
             continue;
         }
-
-        int matchScore = score(x[i - 1], y[j - 1], mode);
-        int diag = prev_row[j - 1] + matchScore;
-        int up = prev_row[j] + GAP_OPEN;
-        int left = curr_row[j - 1] + GAP_OPEN;
-
-        int score = max({diag, up, left});
-        curr_row[j] = score;
-
-        char move;
-        if (score == diag) move = 'd';
-        else if (score == up) move = 'u';
-        else move = 'l';
-
-        if (move == 'd') {
-            alignedX += x[i - 1];
-            alignedY += y[j - 1];
-            i--; j--;
-        } else if (move == 'u') {
-            alignedX += x[i - 1];
-            alignedY += '-';
-            i--;
-        } else {
-            alignedX += '-';
-            alignedY += y[j - 1];
-            j--;
+        // match/mismatch?
+        int sc = score(x[i-1], y[j-1], mode);
+        if (fullDP[i][j] == fullDP[i-1][j-1] + sc) {
+            alignedX += x[--i];
+            alignedY += y[--j];
         }
-        swap(prev_row, curr_row);
+        // deletion (up)
+        else if (fullDP[i][j] == fullDP[i-1][j] + GAP_OPEN) {
+            alignedX += x[--i];
+            alignedY += '-';
+        }
+        // insertion (left)
+        else {
+            alignedX += '-';
+            alignedY += y[--j];
+        }
     }
 
     auto t_end = Clock::now();
@@ -544,8 +543,6 @@ void globalalign(const string &x, const string &y,
 
     reverse(alignedX.begin(), alignedX.end());
     reverse(alignedY.begin(), alignedY.end());
-
-    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
 
     if (verbose) {
         cout << "\n\nGlobal Alignment Score: " << prev_row[n] << "\n";
@@ -844,8 +841,20 @@ void localalign(const std::string &x, const std::string &y,
  */
 void writeCharMatrix(const std::vector<std::vector<char>>& mat, const std::string& filename) {
     std::ofstream out(filename);
+    if (!out) {
+        std::cerr << "Error: Cannot open " << filename << "\n";
+        return;
+    }
+
+    size_t max_cols = 0;
+    for (const auto& row : mat) max_cols = std::max(max_cols, row.size());
+
     for (const auto& row : mat) {
-        for (char c : row) out << c << ' ';
+        for (size_t i = 0; i < max_cols; ++i) {
+            char ch = (i < row.size()) ? row[i] : ' ';
+            out << ch;
+            if (i + 1 < max_cols) out << ' ';
+        }
         out << '\n';
     }
 }
@@ -1035,11 +1044,11 @@ int main(int argc, char** argv) {
         MPI_Bcast(seq1.data(), len1, MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Bcast(seq2.data(), len2, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-        if (choice == 1 && rank == 0) globalalign(seq1, seq2, header1, header2, outdir, mode);
+        if (choice == 1) globalalign(seq1, seq2, header1, header2, outdir, mode);
         else if (choice == 2) localalign(seq1, seq2, header1, header2, outdir, mode);
         else if (choice == 3 && rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
         else if (choice == 4) {
-            if (rank == 0) globalalign(seq1, seq2, header1, header2, outdir, mode);
+            globalalign(seq1, seq2, header1, header2, outdir, mode);
             MPI_Barrier(MPI_COMM_WORLD);
             localalign(seq1, seq2, header1, header2, outdir, mode);
             MPI_Barrier(MPI_COMM_WORLD);
