@@ -25,6 +25,9 @@ awk 'NF {
   printf "\n"
 }' "$LCS_TRACEBACK_FILE" > "${OUTPREFIX}_lcs_numeric.txt"
 
+awk '{ lines[NR] = $0 } END { for (i = NR; i > 0; i--) print lines[i] }' "${OUTPREFIX}_lcs_numeric.txt" > "${OUTPREFIX}_lcs_numeric_flip.txt"
+awk '{ lines[NR] = $0 } END { for (i = NR; i > 0; i--) print lines[i] }' "$GLOBAL_DP_MATRIX" > "${OUTPREFIX}_global_flip.txt"
+awk '{ lines[NR] = $0 } END { for (i = NR; i > 0; i--) print lines[i] }' "$LOCAL_DP_MATRIX" > "${OUTPREFIX}_local_flip.txt"
 
 plot_matrix() {
   local infile="$1"
@@ -48,15 +51,15 @@ plot '${infile}' matrix with image
 EOF
 }
 
-plot_matrix "${OUTPREFIX}_lcs_numeric.txt" "${OUTPREFIX}_lcs" \
+plot_matrix "${OUTPREFIX}_lcs_numeric_flip.txt" "${OUTPREFIX}_lcs" \
   "set palette defined (0 'white', 1 'blue', 2 'green', 3 'red')" \
   "set cbrange [0:3]; set cbtics (' ' 0, 'U' 1, 'L' 2, 'D' 3)" \
   "Direction (U=1, L=2, D=3)"
 
-plot_matrix "$GLOBAL_DP_MATRIX" "${OUTPREFIX}_global" \
+plot_matrix "${OUTPREFIX}_global_flip.txt" "${OUTPREFIX}_global" \
   "set palette rgb 33,13,10" "" "Score"
 
-plot_matrix "$LOCAL_DP_MATRIX" "${OUTPREFIX}_local" \
+plot_matrix "${OUTPREFIX}_local_flip.txt" "${OUTPREFIX}_local" \
   "set palette rgb 33,13,10" "" "Score"
 
 format_stats() {
