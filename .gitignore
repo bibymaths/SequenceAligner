@@ -3,6 +3,7 @@
 
 # Build directories
 build/
+data/
 
 # Results directories
 results*/
