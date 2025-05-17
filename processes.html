@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Abhinav Mishra" /><link rel="canonical" href="https://bibymaths.github.io/SequenceAligner/processes.html" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Theoretical Background - SequenceAligner</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Theoretical Background";
+        var mkdocs_page_input_path = "processes.md";
+        var mkdocs_page_url = "/SequenceAligner/processes.html";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="index.html" class="icon icon-home"> SequenceAligner
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="index.html">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="" href="https://bibymaths.github.io/SequenceAligner/api/index.html">API Reference</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Theoretical Background</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1-longest-common-subsequence-lcs">1. Longest Common Subsequence (LCS)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2-global-alignment-needleman-wunsch">2. Global Alignment (Needleman-Wunsch)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3-local-alignment-smith-waterman">3. Local Alignment (Smith-Waterman)</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="outputs.html">Output</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="about.html">About</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SequenceAligner</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html" class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Theoretical Background</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/bibymaths/SequenceAligner/edit/master/docs/processes.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h2 id="theoretical-background">Theoretical Background<a class="headerlink" href="#theoretical-background" title="Permanent link">&para;</a></h2>
+<h3 id="1-longest-common-subsequence-lcs">1. Longest Common Subsequence (LCS)<a class="headerlink" href="#1-longest-common-subsequence-lcs" title="Permanent link">&para;</a></h3>
+<p>The LCS problem is solved using a dynamic programming table to compute the length and path of the longest subsequence common to both strings. The solution provides insights into evolutionary or structural similarity at a character level.</p>
+<ul>
+<li>Time Complexity: $O(m \cdot n)$</li>
+<li>Space Complexity: $O(m \cdot n)$</li>
+<li>Alignment Type: Character-based (not contiguous)</li>
+</ul>
+<h3 id="2-global-alignment-needleman-wunsch">2. Global Alignment (Needleman-Wunsch)<a class="headerlink" href="#2-global-alignment-needleman-wunsch" title="Permanent link">&para;</a></h3>
+<p>This method aligns the entire sequences using a scoring matrix initialized with gap penalties. It is ideal for full-length, homologous sequences.</p>
+<ul>
+<li>Time Complexity: $O(m \cdot n)$</li>
+<li>Uses a traceback matrix to reconstruct the alignment path.</li>
+<li>Supports scoring for matches, mismatches, and gaps.</li>
+</ul>
+<h3 id="3-local-alignment-smith-waterman">3. Local Alignment (Smith-Waterman)<a class="headerlink" href="#3-local-alignment-smith-waterman" title="Permanent link">&para;</a></h3>
+<p>Focuses on identifying the most similar subsequences. Suitable for aligning protein motifs or conserved regions.</p>
+<ul>
+<li>Time Complexity: $O(m \cdot n)$</li>
+<li>Incorporates zero in scoring to allow for local reset.</li>
+<li>Traceback stops when score becomes zero.</li>
+</ul>
+<hr />
+<h2 id="alignment-matrix-and-mathematical-explanation">Alignment Matrix and Mathematical Explanation<a class="headerlink" href="#alignment-matrix-and-mathematical-explanation" title="Permanent link">&para;</a></h2>
+<h3 id="1-longest-common-subsequence-lcs_1">1. Longest Common Subsequence (LCS)<a class="headerlink" href="#1-longest-common-subsequence-lcs_1" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> Find the longest subsequence common to two sequences $X = x_1x_2\ldots x_m$ and $Y = y_1y_2\ldots y_n$.</p>
+<hr />
+<h3 id="matrix-definition">Matrix Definition<a class="headerlink" href="#matrix-definition" title="Permanent link">&para;</a></h3>
+<p>Let $C[i][j]$ denote the length of the LCS of the prefixes $x_1\ldots x_i$ and $y_1\ldots y_j$.</p>
+<p><strong>Recurrence Relation:</strong></p>
+<p>$$
+C[i][j] =
+\begin{cases}
+0 &amp; \text{if } i = 0 \text{ or } j = 0 \\
+C[i-1][j-1] + 1 &amp; \text{if } x_i = y_j \\
+\max(C[i-1][j], C[i][j-1]) &amp; \text{otherwise}
+\end{cases}
+$$</p>
+<p><strong>Backtracking Table:</strong></p>
+<ul>
+<li><code>D</code>: Diagonal (match)</li>
+<li><code>U</code>: Up (skip from X)</li>
+<li><code>L</code>: Left (skip from Y)</li>
+</ul>
+<p><strong>In Code:</strong></p>
+<pre class="codehilite"><code class="language-cpp">if (x[i - 1] == y[j - 1]) {
+    c[i][j] = c[i - 1][j - 1] + 1;
+    b[i][j] = 'D';
+} else if (c[i - 1][j] &gt;= c[i][j - 1]) {
+    c[i][j] = c[i - 1][j];
+    b[i][j] = 'U';
+} else {
+    c[i][j] = c[i][j - 1];
+    b[i][j] = 'L';
+}
+</code></pre>
+
+<hr />
+<h3 id="2-global-alignment-needlemanwunsch">2. Global Alignment (Needleman–Wunsch)<a class="headerlink" href="#2-global-alignment-needlemanwunsch" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> Align full sequences $X$ and $Y$ from start to end, minimizing penalties or maximizing score.</p>
+<hr />
+<h3 id="matrix-definition_1">Matrix Definition<a class="headerlink" href="#matrix-definition_1" title="Permanent link">&para;</a></h3>
+<p>Let $S[i][j]$ denote the optimal alignment score between $x_1\ldots x_i$ and $y_1\ldots y_j$.</p>
+<p><strong>Initialization:</strong></p>
+<p>$$
+S[i][0] = i \cdot \text{GAP},\quad S[0][j] = j \cdot \text{GAP}
+$$</p>
+<p><strong>Recurrence Relation:</strong></p>
+<p>$$
+S[i][j] = \max \begin{cases}
+S[i-1][j-1] + \text{score}(x_i, y_j) \
+S[i-1][j] + \text{GAP} \
+S[i][j-1] + \text{GAP}
+\end{cases}
+$$</p>
+<p>where:</p>
+<p>$$
+\text{score}(x_i, y_j) = 
+\begin{cases}
+\text{MATCH} &amp; \text{if } x_i = y_j \\
+\text{MISMATCH} &amp; \text{otherwise}
+\end{cases}
+$$</p>
+<p><strong>Traceback:</strong> Built from a <code>traceback[][]</code> matrix storing <code>'D'</code>, <code>'U'</code>, <code>'L'</code> for path recovery.</p>
+<hr />
+<h3 id="3-local-alignment-smithwaterman">3. Local Alignment (Smith–Waterman)<a class="headerlink" href="#3-local-alignment-smithwaterman" title="Permanent link">&para;</a></h3>
+<p><strong>Goal:</strong> Find the highest scoring local region between two sequences, ideal for detecting motifs.</p>
+<hr />
+<h3 id="matrix-definition_2">Matrix Definition<a class="headerlink" href="#matrix-definition_2" title="Permanent link">&para;</a></h3>
+<p>Let $H[i][j]$ be the highest scoring alignment ending at $x_i, y_j$.</p>
+<p><strong>Initialization:</strong></p>
+<p>$$
+H[i][0] = 0,\quad H[0][j] = 0
+$$</p>
+<p><strong>Recurrence Relation:</strong></p>
+<p>$$
+H[i][j] = \max \begin{cases}
+0 \
+H[i-1][j-1] + \text{score}(x_i, y_j) \
+H[i-1][j] + \text{GAP} \
+H[i][j-1] + \text{GAP}
+\end{cases}
+$$</p>
+<p><strong>Reset to 0</strong> allows alignment to start anywhere and stop at the best score.</p>
+<p><strong>Traceback:</strong> Starts from the max score cell and moves until score is zero.</p>
+<hr />
+<h2 id="time-and-space-complexities">Time and Space Complexities<a class="headerlink" href="#time-and-space-complexities" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>Time Complexity</th>
+<th>Space Complexity</th>
+<th>Alignment Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LCS</td>
+<td>O(m·n)</td>
+<td>O(m·n)</td>
+<td>Character-only</td>
+</tr>
+<tr>
+<td>Global (NW)</td>
+<td>O(m·n)</td>
+<td>O(m·n)</td>
+<td>Full sequence</td>
+</tr>
+<tr>
+<td>Local (SW)</td>
+<td>O(m·n)</td>
+<td>O(m·n)</td>
+<td>Subsequence</td>
+</tr>
+</tbody>
+</table>
+<p>Where $m = |X|$, $n = |Y|$</p>
+<hr />
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="index.html" class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="outputs.html" class="btn btn-neutral float-right" title="Output">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+      <p>Copyright &copy; 2025 <a href="https://bibymaths.github.io">Abhinav Mishra</a>.</p>
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/bibymaths/SequenceAligner" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="index.html" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="outputs.html" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
