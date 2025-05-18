@@ -9,7 +9,7 @@ fi
 LCS_TRACEBACK_FILE="$1"
 GLOBAL_DP_MATRIX="$2"
 LOCAL_DP_MATRIX="$3"
-OUTDIR="results"
+OUTDIR="../results"
 OUTPREFIX="${OUTDIR}/plot"
 STATS_DIR=$(dirname "$GLOBAL_DP_MATRIX")
 
