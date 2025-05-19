@@ -565,7 +565,7 @@ void globalalign(const string &x, const string &y,
                  const string &header1, const string &header2,
                  const std::string &outdir, ScoreMode mode, ScoreFn score_fn) {
     int m = x.size(), n = y.size();
-
+    vector<pair<int,int>> global_path;
     vector<int> prev_row, prev_gapX, prev_gapY;
     initAffineDP(n, prev_row, prev_gapX, prev_gapY, true);
 
@@ -609,6 +609,7 @@ void globalalign(const string &x, const string &y,
     string alignedX, alignedY;
     int i = m, j = n;
     while (i > 0 || j > 0) {
+        global_path.emplace_back(j, i);
         // at a corner
         if (i == 0) {
             alignedX += '-';
@@ -640,6 +641,12 @@ void globalalign(const string &x, const string &y,
 
     auto t_end = Clock::now();
     auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+
+    {
+      ofstream pf(outdir + "/global_path.txt");
+      for (auto &p : global_path)
+        pf << p.first << " " << p.second << "\n";
+    }
 
     size_t total   = alignedX.size();
     size_t gaps    = 0, matches = 0;
@@ -742,6 +749,8 @@ void localalign(const std::string &x,
     // Allocate full‐matrix DP for this rank's block: (localRows+1) × (n+1)
     std::vector<std::vector<int>> dp(localRows + 1,
                                      std::vector<int>(n + 1, 0));
+    vector<pair<int,int>> local_path;
+
 
     // Receive the preceding row from rank-1, if any
     if (rank > 0) {
@@ -908,6 +917,7 @@ void localalign(const std::string &x,
         // Traceback from (bestI,bestJ)
         int i = bestI, j = bestJ;
         while (i > 0 && j > 0 && fullDP[i][j] > 0) {
+            local_path.emplace_back(j, i);
             int cur = fullDP[i][j];
             int ms  = score_fn(x[i-1], y[j-1]);
             if      (cur == fullDP[i-1][j-1] + ms) {
@@ -928,10 +938,19 @@ void localalign(const std::string &x,
         }
         std::reverse(alignedX.begin(), alignedX.end());
         std::reverse(alignedY.begin(), alignedY.end());
+        reverse(local_path.begin(), local_path.end());
+
 
         // Timing and statistics
         auto t_end   = Clock::now();
         auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+
+        {
+          ofstream pf(outdir + "/local_path.txt");
+          for (auto &p : local_path)
+            pf << p.first << " " << p.second << "\n";
+        }
+
         size_t total = alignedX.size(), gaps = 0, matches = 0;
         for (size_t k = 0; k < total; ++k) {
             if (alignedX[k]=='-' || alignedY[k]=='-') ++gaps;
@@ -1013,6 +1032,7 @@ void lcs(const string &x, const string &y,
     const int m = x.size(), n = y.size();
     vector<int> prev(n+1), curr(n+1);
     vector<vector<char>> b(m+1, vector<char>(n+1,' '));
+    vector<pair<int,int>> lcs_path;
 
     // bytes per AVX2 register
     const int B = 32;
@@ -1073,13 +1093,21 @@ void lcs(const string &x, const string &y,
     int i = m, j = n;
     string lcs_str;
     while (i > 0 && j > 0) {
-        if (b[i][j] == 'D')       { lcs_str += x[i-1]; --i; --j; }
+        if (b[i][j] == 'D') {
+        lcs_path.emplace_back(j, i);
+        lcs_str += x[i-1]; --i; --j; }
         else if (b[i][j] == 'U')  { --i; }
         else                      { --j; }
     }
     reverse(lcs_str.begin(), lcs_str.end());
+    reverse(lcs_path.begin(), lcs_path.end());
 
-//    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
+    {
+      ofstream pf(outdir + "/lcs_path.txt");
+      for (auto &p : lcs_path)
+        pf << p.first << " " << p.second << "\n";
+    }
+
     std::ofstream outfile(outdir +"/lcs.fasta");
 
     if (binary) {

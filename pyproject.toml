@@ -7,11 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.13"
-datashader = "^0.18.1"
-dask = "^2025.5.0"
-pyarrow = "^20.0.0"
-ome-zarr = "^0.11.1"
-
+snakemake = "^9.4.0"
 
 [build-system]
 requires = ["poetry-core"]
