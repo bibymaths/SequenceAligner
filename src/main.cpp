@@ -1089,17 +1089,20 @@ void lcs(const string &x, const string &y,
         ;
     }
 
-    if (verbose) {
-        std::cout << "\n\nLCS length: " << prev[n] << "\n\nLCS: \n";
-    }
-    for (size_t i = 0; i < lcs_str.length(); i += LINE_WIDTH) {
-        if (verbose) {
-            std::cout << lcs_str.substr(i, LINE_WIDTH) << "\n";
-        }
-        saveLCS(getAccession(header1,mode) + "_" + getAccession(header2,mode),
-        lcs_str, outfile);
-    }
+    // write to fasta
+    if (!outfile) throw runtime_error("Cannot open lcs.fasta for writing");
+    saveLCS(getAccession(header1,mode) + "_" + getAccession(header2,mode),
+            lcs_str,
+            outfile);
     outfile.close();
+
+    // print to console in chunks:
+    if (verbose) {
+      std::cout << "\nLCS length: " << lcs_str.size() << "\n\n";
+      for (size_t i = 0; i < lcs_str.size(); i += LINE_WIDTH) {
+        std::cout << lcs_str.substr(i, LINE_WIDTH) << "\n";
+      }
+    }
 }
 
 
@@ -1176,7 +1179,7 @@ int main(int argc, char** argv) {
         }
 
         if (rank == 0) {
-            std::filesystem::create_directories(outdir));
+            std::filesystem::create_directories(outdir);
         }
 
         std::string seq1, seq2, header1, header2;
@@ -1199,13 +1202,14 @@ int main(int argc, char** argv) {
 
         if (choice == 1) globalalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
         else if (choice == 2) localalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
-        else if (choice == 3 && rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
+        else if (choice == 3) lcs(seq1, seq2, header1, header2, outdir, mode);
         else if (choice == 4) {
             globalalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
             MPI_Barrier(MPI_COMM_WORLD);
             localalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
             MPI_Barrier(MPI_COMM_WORLD);
-            if (rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
+            lcs(seq1, seq2, header1, header2, outdir, mode);
+            MPI_Barrier(MPI_COMM_WORLD);
         } else if (rank == 0) {
             std::cerr << "Invalid method. Use --choice 1/2/3/4.\n";
         }
