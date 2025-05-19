@@ -2,14 +2,18 @@
 set -euo pipefail
 
 # ─── CONFIG ──────────────────────────────────────────────────────
-MATRIX="local_dp_matrix.txt"     # your input raw .txt DP matrix
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MATRIX="$SCRIPT_DIR/../results/local_dp_matrix.txt"
 TILE_DIR="tiles"                 # where to write tile .dat files
 PNG_DIR="tiles/pngs"             # where to write tile .png files
-FINAL="final_dp_heatmap.png"     # output stitched image
+FINAL="$SCRIPT_DIR/../results/local_dp_heatmap.png"
 
 TR=500         # tile rows
 TC=500         # tile cols
-GP_CORES=8     # number of parallel gnuplot jobs
+GP_CORES=$(lscpu -p=CORE \
+  | grep -v '^#' \
+  | sort -u \
+  | wc -l)
 
 # ─── PREREQS CHECK ───────────────────────────────────────────────
 command -v parallel >/dev/null || { echo "Install GNU parallel"; exit 1; }
@@ -45,7 +49,7 @@ done
 export MATRIX TILE_DIR
 
 # ─── SPLIT INTO TILES IN PARALLEL ────────────────────────────────
-printf "%s\n" "${tilespecs[@]}" | parallel -j "$GP_CORES" --colsep ':' '
+printf "%s\n" "${tilespecs[@]}" | parallel --bar -j "$GP_CORES" --colsep ':' '
   r1={1}; r2={2}; c1={3}; c2={4}; i={5}; j={6}
   out="$TILE_DIR/tile_${i}_${j}.dat"
   # extract rows r1–r2, then columns c1–c2
@@ -65,7 +69,7 @@ EOF
 # ─── PLOT TILES IN PARALLEL ──────────────────────────────────────
 export GP_FILE PNG_DIR
 find "$TILE_DIR" -name 'tile_*.dat' | \
-  parallel -j "$GP_CORES" '
+  parallel --bar -j "$GP_CORES" '
     tile={}
     base=$(basename "$tile" .dat)
     gnuplot -e "ARG1=\"$tile\"; set output=\"$PNG_DIR/${base}.png\"" "$GP_FILE"

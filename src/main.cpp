@@ -10,6 +10,7 @@
 * parallelization within each node.
 */
 #include <array>
+#include <cstring>
 #include <iostream>
 #include <chrono>
 #include <iomanip>

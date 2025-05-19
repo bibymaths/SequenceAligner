@@ -28,6 +28,9 @@ else()
 endif()
 
 target_compile_options(aligner PRIVATE -Wall -Wextra)
+target_compile_options(aligner PRIVATE
+    -Wno-cast-function-type
+)
 
 set_target_properties(aligner PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
