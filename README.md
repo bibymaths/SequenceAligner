@@ -136,7 +136,9 @@ mpirun -np <num_processes> ./aligner \
   --target <target.fasta> \
   --choice <1|2|3|4> \
   --mode <dna|protein> \
-  [--outdir <output_directory>] \
+  [--outdir <output_directory>] \ 
+  [--binary <binary file DP>] \ 
+  [--txt <text file DP>] \
   [--gap_open <float>] \
   [--gap_extend <float>] \
   [--verbose]
@@ -153,7 +155,9 @@ To run on local machine, use the following command:
   --target <target.fasta> \
   --choice <1|2|3|4> \
   --mode <dna|protein> \
-  [--outdir <output_directory>] \
+  [--outdir <output_directory>] \ 
+  [--binary <binary file DP>] \ 
+  [--txt <text file DP>] \
   [--gap_open <float>] \
   [--gap_extend <float>] \
   [--verbose]
@@ -164,12 +168,14 @@ To run on local machine, use the following command:
 ### **Explanation of Options**
 
 | Option                | Description                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------- |
+| --------------------- |------------------------------------------------------------------------------------|
 | `--query`             | Path to the query FASTA file                                                       |
 | `--target`            | Path to the target FASTA file                                                      |
 | `--choice`            | Alignment method: <br> `1 = global` <br> `2 = local` <br> `3 = LCS` <br> `4 = all` |
 | `--mode`              | Scoring mode: `dna` (uses EDNAFULL) or `protein` (uses BLOSUM62)                   |
-| `--outdir` *(opt)*    | Output directory (default is current directory `.`)                                |
+| `--outdir` *(opt)*    | Output directory (default is current directory `.`)                                | 
+| `--binary` *(opt)*    | Output binary file for dynamic programming matrix (default: `dp.bin`)             | 
+| `--txt` *(opt)*       | Output text file for dynamic programming matrix (default: `dp.txt`)               |
 | `--gap_open` *(opt)*  | Gap opening penalty (default: `-5.0`)                                              |
 | `--gap_extend`\*(opt) | Gap extension penalty (default: `-1.0`)                                            |
 | `--verbose` *(opt)*   | Show colored alignment and progress bars                                           |
