@@ -9,7 +9,7 @@
 * MPI for parallel processing across multiple nodes and OpenMP for
 * parallelization within each node.
 */
-
+#include <array>
 #include <iostream>
 #include <chrono>
 #include <iomanip>
@@ -30,6 +30,7 @@
 bool verbose = false;
 using namespace std;
 enum ScoreMode { MODE_DNA, MODE_PROTEIN };
+using ScoreFn = int(*)(char,char);
 
 /// Gap penalty
 double GAP_OPEN   = -5.0;  // penalty to open a gap
@@ -46,50 +47,55 @@ static const int LINE_WIDTH = 120;
 /// ANSI escape code: cyan
 #define CYAN  "\033[36m"
 
+// DNA / EDNAFULL lookup
+static const std::array<uint8_t,256> char2idx = [](){
+    std::array<uint8_t,256> m{};
+    m.fill(255);  // mark “invalid”
+    m['A'] =  0;  m['C'] =  1;  m['G'] =  2;  m['T'] =  3;  m['U'] =  3; // T=U
+    m['R'] =  4;  m['Y'] =  5;  m['S'] =  6;  m['W'] =  7;
+    m['K'] =  8;  m['M'] =  9;  m['B'] = 10;  m['D'] = 11;
+    m['H'] = 12;  m['V'] = 13;  m['N'] = 14;  m['X'] = 14;
+    return m;
+}();
 
-// The EDNAFULL matrix is defined as a 2D C array of size N×N:
-static const std::unordered_map<char,int> edna_index = {
-  {'A',0},{'C',1},{'G',2},{'T',3},
-  {'U',3}, // T=U
-  {'R',4},{'Y',5},{'S',6},{'W',7},
-  {'K',8},{'M',9},{'B',10},{'D',11},
-  {'H',12},{'V',13},{'N',14},{'X',14}
-};
-
-// The BLOSUM62 matrix is defined as a 2D C array of size 24×24:
-static const std::unordered_map<char, int> blosum62_index = {
-  {'A', 0}, {'R', 1}, {'N', 2}, {'D', 3}, {'C', 4}, {'Q', 5}, {'E', 6}, {'G', 7},
-  {'H', 8}, {'I', 9}, {'L',10}, {'K',11}, {'M',12}, {'F',13}, {'P',14}, {'S',15},
-  {'T',16}, {'W',17}, {'Y',18}, {'V',19}, {'B',20}, {'Z',21}, {'X',22}, {'*',23}
-};
-
+// Protein / BLOSUM62 lookup
+static const std::array<uint8_t,256> prot_idx = [](){
+    std::array<uint8_t,256> m{};
+    m.fill(255);
+    m['A']=0;   m['R']=1;   m['N']=2;   m['D']=3;   m['C']=4;
+    m['Q']=5;   m['E']=6;   m['G']=7;   m['H']=8;   m['I']=9;
+    m['L']=10;  m['K']=11;  m['M']=12;  m['F']=13;  m['P']=14;
+    m['S']=15;  m['T']=16;  m['W']=17;  m['Y']=18;  m['V']=19;
+    m['B']=20;  m['Z']=21;  m['X']=22;  m['*']=23;
+    return m;
+}();
 
 /**
- * @brief Lookup the EDNAFULL score between two bases (incl. ambiguous codes).
- * @param x First base (IUPAC code).
- * @param y Second base (IUPAC code).
+ * @brief Lookup the score between two characters based on the selected mode.
+ * @param x First character (base or amino acid).
+ * @param y Second character (base or amino acid).
+ * @return Score based on the selected scoring matrix.
 **/
 inline int edna_score(char x, char y) {
-    auto ix = edna_index.find(x);
-    auto iy = edna_index.find(y);
-    if (ix==edna_index.end() || iy==edna_index.end())
-        throw std::runtime_error(std::string("Invalid base: ")+x+","+y);
-    return static_cast<int>(EDNAFULL_matrix[ix->second][iy->second]);
+    uint8_t ix = char2idx[uint8_t(x)];
+    uint8_t iy = char2idx[uint8_t(y)];
+        throw std::runtime_error(std::string("Invalid DNA code: ") + x + "," + y);
+    return EDNAFULL_matrix[ix][iy];
 }
 
 /**
- * @brief Lookup the BLOSUM62 score between two amino acids.
- * @param x First amino acid (1-letter code).
- * @param y Second amino acid (1-letter code).
+ * @brief Lookup the score between two characters based on the selected mode.
+ * @param x First character (base or amino acid).
+ * @param y Second character (base or amino acid).
+ * @return Score based on the selected scoring matrix.
 **/
 inline int blosum62_score(char x, char y) {
-    auto ix = blosum62_index.find(x);
-    auto iy = blosum62_index.find(y);
-    if (ix == blosum62_index.end() || iy == blosum62_index.end())
+    uint8_t ix = prot_idx[uint8_t(x)];
+    uint8_t iy = prot_idx[uint8_t(y)];
+    if (ix == 255 || iy == 255)
         throw std::runtime_error(std::string("Invalid protein code: ") + x + "," + y);
-    return static_cast<int>(EBLOSUM62_matrix[ix->second][iy->second]);
+    return EBLOSUM62_matrix[ix][iy];
 }
-
 
 /**
  * @brief Lookup the score between two characters based on the selected mode.
@@ -401,19 +407,24 @@ void initAffineDP(int n,
 void computeAffineDPRow(int i,
                         const string& x,
                         const string& y,
-                        ScoreMode mode,
                         vector<int>& prev_row,
                         vector<int>& prev_gapX,
                         vector<int>& prev_gapY,
                         vector<int>& curr_row,
                         vector<int>& curr_gapX,
-                        vector<int>& curr_gapY)
+                        vector<int>& curr_gapY,
+                        ScoreFn score_fn)
 {
     (void)prev_gapY;
     int n = y.size();
-    curr_row .assign(n+1, INT_MIN/2);
-    curr_gapX.assign(n+1, INT_MIN/2);
-    curr_gapY.assign(n+1, INT_MIN/2);
+
+    curr_row.resize(n+1);
+    curr_gapX.resize(n+1);
+    curr_gapY.resize(n+1);
+
+    std::fill_n(curr_row.data(), n+1, INT_MIN/2);
+    std::fill_n(curr_gapX.data(), n+1, INT_MIN/2);
+    std::fill_n(curr_gapY.data(), n+1, INT_MIN/2);
 
     // j=0 column: gap in X down to (i,0)
     curr_gapX[0] = max(prev_row[0]  + GAP_OPEN + GAP_EXTEND,
@@ -434,7 +445,7 @@ void computeAffineDPRow(int i,
         );
 
         // match/mismatch diagonal
-        int mscore = score(x[i-1], y[j-1], mode);
+        int mscore = score_fn(x[i-1], y[j-1]);
         int diag   = prev_row[j-1] + mscore;
 
         // choose best of the three
@@ -453,7 +464,7 @@ void computeAffineDPRow(int i,
  */
 void globalalign(const string &x, const string &y,
                  const string &header1, const string &header2,
-                 const std::string &outdir, ScoreMode mode) {
+                 const std::string &outdir, ScoreMode mode, ScoreFn score_fn) {
     int m = x.size(), n = y.size();
 
     vector<int> prev_row, prev_gapX, prev_gapY;
@@ -471,9 +482,9 @@ void globalalign(const string &x, const string &y,
     auto t_start = Clock::now();
 
      for (int i = 1; i <= m; ++i) {
-          computeAffineDPRow(i, x, y, mode,
+          computeAffineDPRow(i, x, y,
                              prev_row, prev_gapX, prev_gapY,
-                             curr_row, curr_gapX, curr_gapY);
+                             curr_row, curr_gapX, curr_gapY, score_fn);
           prev_row.swap(curr_row);
           prev_gapX.swap(curr_gapX);
           prev_gapY.swap(curr_gapY);
@@ -506,7 +517,7 @@ void globalalign(const string &x, const string &y,
             continue;
         }
         // match/mismatch?
-        int sc = score(x[i-1], y[j-1], mode);
+        int sc = score_fn(x[i-1], y[j-1]);;
         if (fullDP[i][j] == fullDP[i-1][j-1] + sc) {
             alignedX += x[--i];
             alignedY += y[--j];
@@ -606,7 +617,7 @@ void globalalign(const string &x, const string &y,
  */
 void localalign(const std::string &x, const std::string &y,
                 const std::string &header1, const std::string &header2,
-                const std::string &outdir, ScoreMode mode) {
+                const std::string &outdir, ScoreMode mode, ScoreFn score_fn) {
     int m = x.size(), n = y.size();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -639,7 +650,7 @@ void localalign(const std::string &x, const std::string &y,
             curr[0] = 0;
             #pragma omp simd
             for (int j = 1; j <= n; ++j) {
-                int ms = score(x[gi], y[j - 1], mode);
+                int ms = score_fn(x[gi], y[j - 1]);
                 int v  = prev[j-1] + ms;
                 int u  = prev[j]   + GAP_OPEN;
                 int l  = curr[j-1] + GAP_OPEN;
@@ -705,7 +716,7 @@ void localalign(const std::string &x, const std::string &y,
         std::vector<std::vector<int>> dp(I+1, std::vector<int>(J+1,0));
         for (int i = 1; i <= I; ++i) {
             for (int j = 1; j <= J; ++j) {
-                int ms = score(x[i - 1], y[j - 1], mode);
+                int ms = score_fn(x[i - 1], y[j - 1]);
                 int v  = dp[i-1][j-1] + ms;
                 int u  = dp[i-1][j]   + GAP_OPEN;
                 int l  = dp[i][j-1]   + GAP_OPEN;
@@ -722,7 +733,7 @@ void localalign(const std::string &x, const std::string &y,
         int i = I, j = J;
         while (i > 0 && j > 0 && dp[i][j] > 0) {
             int cur = dp[i][j];
-            int ms  = score(x[i - 1], y[j - 1], mode);
+            int ms  = score_fn(x[i - 1], y[j - 1]);
             if (cur == dp[i-1][j-1] + ms) {
                 alignedX.push_back(x[i-1]);
                 alignedY.push_back(y[j-1]);
@@ -1016,6 +1027,13 @@ int main(int argc, char** argv) {
             }
         }
 
+        ScoreFn score_fn = nullptr;
+        if (mode == MODE_DNA) {
+            score_fn = &edna_score;
+        } else {
+            score_fn = &blosum62_score;
+        }
+
         if (file1.empty() || file2.empty() || choice == -1) {
             if (rank == 0)
                 std::cerr << "Missing required arguments: --query, --target, --choice\n";
@@ -1044,13 +1062,13 @@ int main(int argc, char** argv) {
         MPI_Bcast(seq1.data(), len1, MPI_CHAR, 0, MPI_COMM_WORLD);
         MPI_Bcast(seq2.data(), len2, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-        if (choice == 1) globalalign(seq1, seq2, header1, header2, outdir, mode);
-        else if (choice == 2) localalign(seq1, seq2, header1, header2, outdir, mode);
+        if (choice == 1) globalalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
+        else if (choice == 2) localalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
         else if (choice == 3 && rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
         else if (choice == 4) {
-            globalalign(seq1, seq2, header1, header2, outdir, mode);
+            globalalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
             MPI_Barrier(MPI_COMM_WORLD);
-            localalign(seq1, seq2, header1, header2, outdir, mode);
+            localalign(seq1, seq2, header1, header2, outdir, mode, score_fn);
             MPI_Barrier(MPI_COMM_WORLD);
             if (rank == 0) lcs(seq1, seq2, header1, header2, outdir, mode);
         } else if (rank == 0) {

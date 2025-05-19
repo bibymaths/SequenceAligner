@@ -6,10 +6,11 @@ if [ "$#" -ne 3 ]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LCS_TRACEBACK_FILE="$1"
 GLOBAL_DP_MATRIX="$2"
 LOCAL_DP_MATRIX="$3"
-OUTDIR="../results"
+OUTDIR="$SCRIPT_DIR/../results"
 OUTPREFIX="${OUTDIR}/plot"
 STATS_DIR=$(dirname "$GLOBAL_DP_MATRIX")
 
@@ -37,8 +38,11 @@ plot_matrix() {
   local colorlabel="$5"
 
   gnuplot -persist <<EOF
-set terminal pngcairo size 1000,1000 enhanced font 'Arial,10'
+
+# set terminal pngcairo size 1000,1000 enhanced font 'Arial,10'
+set terminal pngcairo size 1000,1000 enhanced font 'DejaVu-Sans,10'
 set output '${outfile}.png'
+set datafile separator whitespace
 unset key; unset border; unset xtics; unset ytics; unset title
 set colorbox
 set cblabel "${colorlabel}" font ",12" offset 2,0
@@ -96,15 +100,15 @@ magick "${OUTPREFIX}_lcs.png" \
   "${OUTPREFIX}_lcs_labeled.png"
 
 magick -size 1000x1000 xc:white \
-  -gravity northwest -font Arial -pointsize 22 \
+  -gravity northwest -pointsize 22 \
   -annotate +50+100 "@${OUTPREFIX}_stats.txt" \
   "${OUTPREFIX}_stats.png"
 
-montage \
-  "${OUTPREFIX}_global_labeled.png" "${OUTPREFIX}_local_labeled.png" \
-  "${OUTPREFIX}_lcs_labeled.png"    "${OUTPREFIX}_stats.png" \
-  -tile 2x2 -geometry +10+10 -background white \
-  "${OUTDIR}/summary.png"
-
-# --- Cleanup ---
-rm -f "${OUTPREFIX}"_*.png "${OUTPREFIX}"_*.txt
+#montage \
+#  "${OUTPREFIX}_global_labeled.png" "${OUTPREFIX}_local_labeled.png" \
+#  "${OUTPREFIX}_lcs_labeled.png"    "${OUTPREFIX}_stats.png" \
+#  -tile 2x2 -geometry +10+10 -background white \
+#  "${OUTDIR}/summary.png"
+#
+## --- Cleanup ---
+#rm -f "${OUTPREFIX}"_*.png "${OUTPREFIX}"_*.txt
