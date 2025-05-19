@@ -342,24 +342,108 @@ void printColoredAlignment(const string &seq1, const string &seq2, ostream &os =
  * @param dp       The DP matrix (2D vector).
  * @param filename The output filename.
  */
+//void writeDPMatrix(const std::vector<std::vector<int>>& dp, const std::string& filename) {
+//    std::ofstream out(filename);
+//    if (!out) {
+//        std::cerr << "Error: Cannot write DP matrix to " << filename << "\n";
+//        return;
+//    }
+//
+//    for (const auto& row : dp) {
+//        for (size_t j = 0; j < row.size(); ++j) {
+//            out << std::setw(5) << row[j];
+//            if (j != row.size() - 1) out << " ";
+//        }
+//        out << "\n";
+//    }
+//
+//    out.close();
+//}
+
+/**
+ * @brief Write the DP matrix to a binary file.
+ *
+ * @param dp       The DP matrix (2D vector).
+ * @param filename The output filename.
+ */
 void writeDPMatrix(const std::vector<std::vector<int>>& dp, const std::string& filename) {
-    std::ofstream out(filename);
+    std::ofstream out(filename, std::ios::binary);
     if (!out) {
-        std::cerr << "Error: Cannot write DP matrix to " << filename << "\n";
+        std::cerr << "Error: Cannot write binary DP matrix to " << filename << "\n";
         return;
     }
 
+    int32_t rows = dp.size();
+    int32_t cols = dp[0].size();
+
+    // Write matrix shape as 2 int32 headers
+    out.write(reinterpret_cast<const char*>(&rows), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(&cols), sizeof(int32_t));
+
     for (const auto& row : dp) {
-        for (size_t j = 0; j < row.size(); ++j) {
-            out << std::setw(5) << row[j];
-            if (j != row.size() - 1) out << " ";
-        }
-        out << "\n";
+        out.write(reinterpret_cast<const char*>(row.data()), cols * sizeof(int32_t));
     }
 
     out.close();
 }
 
+/**
+ * @brief Write a character matrix to a file.
+ *
+ * @param mat      The character matrix (2D vector).
+ * @param filename The output filename.
+ */
+//void writeCharMatrix(const std::vector<std::vector<char>>& mat, const std::string& filename) {
+//    std::ofstream out(filename);
+//    if (!out) {
+//        std::cerr << "Error: Cannot open " << filename << "\n";
+//        return;
+//    }
+//
+//    size_t max_cols = 0;
+//    for (const auto& row : mat) max_cols = std::max(max_cols, row.size());
+//
+//    for (const auto& row : mat) {
+//        for (size_t i = 0; i < max_cols; ++i) {
+//            char ch = (i < row.size()) ? row[i] : ' ';
+//            out << ch;
+//            if (i + 1 < max_cols) out << ' ';
+//        }
+//        out << '\n';
+//    }
+//}
+
+  /**
+ * @brief Write a character matrix to a binary file.
+ *
+ * @param mat      The character matrix (2D vector).
+ * @param filename The output filename.
+ */
+void writeCharMatrix(const std::vector<std::vector<char>>& mat, const std::string& filename) {
+    std::ofstream out(filename, std::ios::binary);
+    if (!out) {
+        std::cerr << "Error: Cannot open " << filename << " for writing.\n";
+        return;
+    }
+
+    int32_t rows = mat.size();
+    int32_t cols = 0;
+    for (const auto& row : mat) cols = std::max<int32_t>(cols, row.size());
+
+    // Write dimensions
+    out.write(reinterpret_cast<const char*>(&rows), sizeof(int32_t));
+    out.write(reinterpret_cast<const char*>(&cols), sizeof(int32_t));
+
+    // Write character data row by row, pad with ' ' if shorter
+    for (const auto& row : mat) {
+        for (int32_t i = 0; i < cols; ++i) {
+            char ch = (i < static_cast<int32_t>(row.size())) ? row[i] : ' ';
+            out.write(&ch, sizeof(char));
+        }
+    }
+
+    out.close();
+}
 
 /* * @brief Initialize the DP row and gap arrays for affine gap scoring.
  *
@@ -498,7 +582,7 @@ void globalalign(const string &x, const string &y,
     }
 
     std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
-    writeDPMatrix(fullDP, outdir + "/" + modeDir + "/global_dp_matrix.txt");
+    writeDPMatrix(fullDP, outdir + "/" + modeDir + "/global_dp_matrix.bin");
 
 
     // Traceback
@@ -727,7 +811,7 @@ void localalign(const std::string &x, const std::string &y,
                 dp[i][j] = s;
             }
         }
-        std::string dpfile = outdir + "/" + modeDir + "/local_dp_matrix.txt";
+        std::string dpfile = outdir + "/" + modeDir + "/local_dp_matrix.bin";
         writeDPMatrix(dp, dpfile);
 
         int i = I, j = J;
@@ -845,32 +929,6 @@ void localalign(const std::string &x, const std::string &y,
 }
 
 /**
- * @brief Write a character matrix to a file.
- *
- * @param mat      The character matrix (2D vector).
- * @param filename The output filename.
- */
-void writeCharMatrix(const std::vector<std::vector<char>>& mat, const std::string& filename) {
-    std::ofstream out(filename);
-    if (!out) {
-        std::cerr << "Error: Cannot open " << filename << "\n";
-        return;
-    }
-
-    size_t max_cols = 0;
-    for (const auto& row : mat) max_cols = std::max(max_cols, row.size());
-
-    for (const auto& row : mat) {
-        for (size_t i = 0; i < max_cols; ++i) {
-            char ch = (i < row.size()) ? row[i] : ' ';
-            out << ch;
-            if (i + 1 < max_cols) out << ' ';
-        }
-        out << '\n';
-    }
-}
-
-/**
  * @brief Compute the Longest Common Subsequence (LCS) of two strings.
  *
  * Uses a classic DP with blocking via AVX2 for byte‐wise comparisons
@@ -953,7 +1011,7 @@ void lcs(const string &x, const string &y,
 
     std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
     std::ofstream outfile(outdir + "/" + modeDir + "/lcs.txt");
-    writeCharMatrix(b, outdir + "/" + modeDir + "/lcs_traceback.txt");
+    writeCharMatrix(b, outdir + "/" + modeDir + "/lcs_traceback.bin");
 
     if (verbose) {
         std::cout << "\n\nLCS length: " << prev[n] << "\n\nLCS: \n";
