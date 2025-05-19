@@ -72,7 +72,10 @@ find "$TILE_DIR" -name 'tile_*.dat' | \
   parallel --bar -j "$GP_CORES" '
     tile={}
     base=$(basename "$tile" .dat)
-    gnuplot -e "ARG1=\"$tile\"; set output=\"$PNG_DIR/${base}.png\"" "$GP_FILE"
+    gnuplot \
+      -e "ARG1='\''${tile}'\''" \
+      -e "set output '\''${PNG_DIR}/${base}.png'\''" \
+      '"$GP_FILE"'
   '
 
 rm "$GP_FILE"
