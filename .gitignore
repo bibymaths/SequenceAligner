@@ -5,6 +5,9 @@
 build/
 data/
 
+# snakemake files
+.snakemake/
+
 # Results directories
 results*/
 aligner
