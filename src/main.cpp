@@ -660,8 +660,8 @@ void globalalign(const string &x, const string &y,
 
     if (verbose) {
         cout << "\n\nGlobal Alignment Score: " << prev_row[n] << "\n";
-        cout << "Gap Open" << GAP_OPEN << "\n";
-        cout << "Gap Extend" << GAP_EXTEND << "\n";
+        cout << "Gap Open: " << GAP_OPEN << "\n";
+        cout << "Gap Extend: " << GAP_EXTEND << "\n";
         cout << "Matches: " << matches << "\n";
         cout << "Gaps:    " << gaps << "\n";
         cout << "Total:   " << total << "\n";
@@ -1176,7 +1176,7 @@ int main(int argc, char** argv) {
         }
 
         if (rank == 0) {
-            std::filesystem::create_directories(outdir + "/" + (mode == MODE_DNA ? "dna" : "protein"));
+            std::filesystem::create_directories(outdir));
         }
 
         std::string seq1, seq2, header1, header2;
