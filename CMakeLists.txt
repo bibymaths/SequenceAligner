@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
+#find_package(ZLIB REQUIRED)
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
   message(STATUS "Enabling AddressSanitizer")
@@ -18,6 +19,7 @@ add_executable(aligner src/main.cpp)
 
 target_include_directories(aligner PRIVATE ${MPI_CXX_INCLUDE_DIRS})
 target_link_libraries(aligner PRIVATE ${MPI_CXX_LIBRARIES} OpenMP::OpenMP_CXX)
+# target_link_libraries(aligner PRIVATE ${MPI_CXX_LIBRARIES} OpenMP::OpenMP_CXX ${ZLIB_LIBRARIES})
 
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)

@@ -9,6 +9,7 @@
 * MPI for parallel processing across multiple nodes and OpenMP for
 * parallelization within each node.
 */
+#include <zlib.h>
 #include <array>
 #include <cstring>
 #include <iostream>
@@ -32,6 +33,16 @@ bool verbose = false;
 bool binary = false;
 bool txt = false;
 using namespace std;
+
+using score_t = int;                           // the cell‐type in your DP
+static std::vector<score_t> dp_prev, dp_curr;  // two rolling rows
+
+static void allocThreadBuffers(int n) {
+    // allocate (n+1) entries in each row, zero-initialized
+    dp_prev.assign(n+1, 0);
+    dp_curr.assign(n+1, 0);
+}
+
 enum ScoreMode { MODE_DNA, MODE_PROTEIN };
 using ScoreFn = int(*)(char,char);
 
@@ -244,32 +255,102 @@ std::string getGeneSymbol(const std::string& header, ScoreMode mode) {
  * @brief Read the first record from a FASTA file.
  *
  * Extracts the very first header (minus the leading `>`), and concatenates
- * all subsequent lines into a single sequence string.
+ * all subsequent lines into a single sequence string. If a target chromosome
+ * is specified, only that record is processed.
  *
  * @param filename  Path to the FASTA file.
  * @param[out] header   On return, the header line without leading `>`.
  * @param[out] sequence On return, the full sequence (no newlines).
+ * @param targetChr  Optional chromosome ID to filter by (empty means no filter).
  * @throws std::runtime_error if the file cannot be opened.
  */
-void processFasta(const string &filename, string &header, string &sequence) {
-    ifstream file(filename);
-    if (!file) throw runtime_error("Error: Unable to open " + filename);
-    string line;
-    header = "";
-    sequence = "";
-    bool headerSet = false;
-    while (getline(file, line)) {
+void processFasta(const std::string &filename,
+                  std::string &header,
+                  std::string &sequence,
+                  const std::string &targetChr = "")
+{
+    std::ifstream file(filename);
+    if (!file) throw std::runtime_error("Error: Unable to open " + filename);
+    std::string line;
+    header.clear();
+    sequence.clear();
+    bool inRec = targetChr.empty();   // if no filter, grab first record
+    while (std::getline(file, line)) {
         if (line.empty()) continue;
         if (line[0] == '>') {
-            if (!headerSet) {
-                header = line.substr(1);
-                headerSet = true;
+            // strip leading '>' and up to first space
+            std::string h = line.substr(1);
+            std::string id = h.substr(0, h.find_first_of(" \t"));
+            if (!targetChr.empty()) {
+                if (id == targetChr) {
+                    inRec = true;
+                    header = h;
+                } else if (inRec) {
+                    // we just left our target record → done
+                    break;
+                } else {
+                    inRec = false;
+                }
+            } else if (!inRec) {
+                // first header ever
+                header = h;
+                inRec = true;
             }
             continue;
         }
-        sequence += line;
+        if (inRec) sequence += line;
     }
 }
+
+
+/* * @brief Read the first record from a gzipped FASTA file.
+ *
+ * Extracts the very first header (minus the leading `>`), and concatenates
+ * all subsequent lines into a single sequence string. If a target chromosome
+ * is specified, only that record is processed.
+ *
+ * @param filename  Path to the gzipped FASTA file.
+ * @param[out] header   On return, the header line without leading `>`.
+ * @param[out] sequence On return, the full sequence (no newlines).
+ * @param targetChr  Optional chromosome ID to filter by (empty means no filter).
+ * @throws std::runtime_error if the file cannot be opened.
+ */
+void processFastaGz(const std::string &filename,
+                    std::string &header,
+                    std::string &sequence,
+                    const std::string &targetChr = "")
+{
+    gzFile file = gzopen(filename.c_str(), "rb");
+    if (!file) throw std::runtime_error("Error opening " + filename);
+    char buf[8192];
+    header.clear();
+    sequence.clear();
+    bool inRec = targetChr.empty();
+    while (gzgets(file, buf, sizeof(buf))) {
+        std::string line(buf);
+        if (!line.empty() && line.back()=='\n') line.pop_back();
+        if (line.empty()) continue;
+        if (line[0]=='>') {
+            std::string h = line.substr(1);
+            std::string id = h.substr(0, h.find_first_of(" \t"));
+            if (!targetChr.empty()) {
+                if (id==targetChr) {
+                    inRec = true; header = h;
+                } else if (inRec) {
+                    break;
+                } else {
+                    inRec = false;
+                }
+            } else if (!inRec) {
+                header = h; inRec = true;
+            }
+            continue;
+        }
+        if (inRec) sequence += line;
+    }
+    gzclose(file);
+}
+
 
 /**
  * @brief Write two aligned sequences in FASTA format.
@@ -564,162 +645,274 @@ void computeAffineDPRow(int i,
  */
 void globalalign(const string &x, const string &y,
                  const string &header1, const string &header2,
-                 const std::string &outdir, ScoreMode mode, ScoreFn score_fn) {
+                 const std::string &outdir, ScoreMode mode, ScoreFn score_fn)
+{
     int m = x.size(), n = y.size();
-    vector<pair<int,int>> global_path;
-    vector<int> prev_row, prev_gapX, prev_gapY;
-    initAffineDP(n, prev_row, prev_gapX, prev_gapY, true);
 
-    vector<vector<int>> fullDP(m+1, vector<int>(n+1));
-    fullDP[0] = prev_row;
+    // 1) allocate two rows + trace matrix
+    allocThreadBuffers(n);
+    // trace[i][j] = 'D','U','L'
+    vector<vector<char>> trace(m+1, vector<char>(n+1,'0'));
 
-    vector<int> curr_row, curr_gapX, curr_gapY;
+    // initialize row 0
+    for(int j=1; j<=n; ++j) {
+        dp_prev[j] = j * (score_t)GAP_OPEN;
+        trace[0][j] = 'L';
+    }
+    dp_prev[0] = 0;
 
-    vector<char> prev_trace(n + 1, '0');
-    vector<char> curr_trace(n + 1, '0');
-
-    using Clock = std::chrono::high_resolution_clock;
+    using Clock = chrono::high_resolution_clock;
     auto t_start = Clock::now();
 
-     for (int i = 1; i <= m; ++i) {
-          computeAffineDPRow(i, x, y,
-                             prev_row, prev_gapX, prev_gapY,
-                             curr_row, curr_gapX, curr_gapY, score_fn);
-          prev_row.swap(curr_row);
-          prev_gapX.swap(curr_gapX);
-          prev_gapY.swap(curr_gapY);
-
-          // save row i into the full matrix
-          fullDP[i] = prev_row;
-
-        if (verbose) { if (i % 1000 == 0 || i == m) {
-            showProgressBar(i, m);
-        }}
+    // 2) fill by antidiagonals
+    #pragma omp parallel
+    {
+        for(int k=1; k<=m+n; ++k) {
+            #pragma omp for schedule(dynamic)
+            for(int i = max(1, k-n); i <= min(m, k); ++i) {
+                int j = k - i;
+                if (j < 1 || j > n) continue;
+                // scores
+                score_t d = dp_prev[j-1] + (score_t)score_fn(x[i-1], y[j-1]);
+                score_t u = dp_prev[j]   + (score_t)GAP_OPEN;
+                score_t l = dp_curr[j-1] + (score_t)GAP_OPEN;
+                // best
+                score_t best = max({d,u,l});
+                dp_curr[j] = best;
+                // record trace
+                if      (best == d) trace[i][j] = 'D';
+                else if (best == u) trace[i][j] = 'U';
+                else                trace[i][j] = 'L';
+            }
+            #pragma omp single
+            swap(dp_prev, dp_curr);
+        }
     }
 
-//    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
-
-    if (binary) {
-        writeDPMatrix(fullDP, outdir +"/global_dp_matrix.bin");
-    } else if (txt) {
-        writeRawDPMatrix(fullDP, outdir +"/global_dp_matrix.txt");
-    } else {
-        ;
-    }
-    // Traceback
+    // 3) traceback from (m,n)
+    vector<pair<int,int>> global_path;
     string alignedX, alignedY;
     int i = m, j = n;
-    while (i > 0 || j > 0) {
-        global_path.emplace_back(j, i);
-        // at a corner
-        if (i == 0) {
-            alignedX += '-';
-            alignedY += y[--j];
-            continue;
+    while(i>0 || j>0) {
+        global_path.emplace_back(j,i);
+        char c = trace[i][j];
+        if      (i>0 && j>0 && c=='D') {
+            alignedX.push_back(x[i-1]);
+            alignedY.push_back(y[j-1]);
+            --i; --j;
         }
-        if (j == 0) {
-            alignedX += x[--i];
-            alignedY += '-';
-            continue;
+        else if (i>0 && c=='U') {
+            alignedX.push_back(x[i-1]);
+            alignedY.push_back('-');
+            --i;
         }
-        // match/mismatch?
-        int sc = score_fn(x[i-1], y[j-1]);;
-        if (fullDP[i][j] == fullDP[i-1][j-1] + sc) {
-            alignedX += x[--i];
-            alignedY += y[--j];
-        }
-        // deletion (up)
-        else if (fullDP[i][j] == fullDP[i-1][j] + GAP_OPEN) {
-            alignedX += x[--i];
-            alignedY += '-';
-        }
-        // insertion (left)
-        else {
-            alignedX += '-';
-            alignedY += y[--j];
+        else {  // 'L'
+            alignedX.push_back('-');
+            alignedY.push_back(y[j-1]);
+            --j;
         }
     }
+    reverse(alignedX.begin(),  alignedX.end());
+    reverse(alignedY.begin(),  alignedY.end());
+    reverse(global_path.begin(), global_path.end());
 
+    // 4) timing & stats
     auto t_end = Clock::now();
-    auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+    long time_ms = chrono::duration_cast<chrono::milliseconds>(t_end - t_start).count();
+    size_t total = alignedX.size(), gaps=0, matches=0;
+    for(size_t k=0; k<total; ++k) {
+        if (alignedX[k]=='-' || alignedY[k]=='-') ++gaps;
+        else if (alignedX[k]==alignedY[k])       ++matches;
+    }
+    double identity = double(matches)/total;
+    double coverage = double(total-gaps)/total;
+    score_t finalScore = dp_prev[n];
 
+    // 5) write global_path.txt
     {
       ofstream pf(outdir + "/global_path.txt");
       for (auto &p : global_path)
         pf << p.first << " " << p.second << "\n";
     }
 
-    size_t total   = alignedX.size();
-    size_t gaps    = 0, matches = 0;
-    for (size_t i = 0; i < total; ++i) {
-        if (alignedX[i]=='-' || alignedY[i]=='-') ++gaps;
-        else if (alignedX[i]==alignedY[i])       ++matches;
-    }
-    double identity = double(matches) / total;
-    double coverage = double(total - gaps) / total;
-
-    std::string accession1 = getAccession(header1, mode);
-    std::string accession2 = getAccession(header2, mode);
-
-    std::string gene1 = getGeneSymbol(header1, mode);
-    std::string gene2 = getGeneSymbol(header2, mode);
-
-    reverse(alignedX.begin(), alignedX.end());
-    reverse(alignedY.begin(), alignedY.end());
-
+    // 6) verbose print
     if (verbose) {
-        cout << "\n\nGlobal Alignment Score: " << prev_row[n] << "\n";
-        cout << "Gap Open: " << GAP_OPEN << "\n";
-        cout << "Gap Extend: " << GAP_EXTEND << "\n";
-        cout << "Matches: " << matches << "\n";
-        cout << "Gaps:    " << gaps << "\n";
-        cout << "Total:   " << total << "\n";
-        cout << "Identity: " << identity * 100.0f << "%\n";
-        cout << "Coverage: " << coverage * 100.0f << "%\n";
-        cout << "Time:    " << time_ms << " ms\n";
-        cout << "Query:   " << accession1 << "\n";
-        cout << "Target:  " << accession2 << "\n";
-        cout << "QueryID:  " << gene1 << "\n";
-        cout << "TargetID:  " << gene2 << "\n";
+        cout << "\n\nGlobal Alignment Score: " << finalScore << "\n"
+             << "Gap Open: " << GAP_OPEN << "\n"
+             << "Gap Extend: " << GAP_EXTEND << "\n"
+             << "Matches: " << matches << "\n"
+             << "Gaps:    " << gaps   << "\n"
+             << "Total:   " << total  << "\n"
+             << "Identity: " << identity*100.0 << "%\n"
+             << "Coverage: " << coverage*100.0 << "%\n"
+             << "Time:    " << time_ms << " ms\n"
+             << "Query:   " << header1 << "\n"
+             << "Target:  " << header2 << "\n";
         printColoredAlignment(alignedX, alignedY);
     }
 
-    std::ofstream outfile(outdir +"/global_alignment.fasta");
-    if (outfile) {
-        savePlainAlignment(getAccession(header1,mode),
-                           getAccession(header2,mode),
-                           alignedX, alignedY,
-                           outfile);
-            outfile.close();
-    } else {
-        cerr << "Error: Unable to open output file global_alignment.fasta\n";
+    // 7) write FASTA
+    {
+      ofstream outf(outdir + "/global_alignment.fasta");
+      savePlainAlignment(header1, header2, alignedX, alignedY, outf);
     }
 
-    ofstream js(outdir +"/global_stats.json");
-    if (js) {
+    // 8) write JSON stats
+    {
+      ofstream js(outdir + "/global_stats.json");
       js << fixed << setprecision(6)
          << "{\n"
          << "  \"method\":      \"global\",\n"
-         << " \"gap_open\":   " << GAP_OPEN << ",\n"
-         << "  \"gap_extend\": " << GAP_EXTEND << ",\n"
-         << "  \"score\":       " << prev_row[n]  << ",\n"
-         << "  \"matches\":     " << matches << ",\n"
-         << "  \"gaps\":        " << gaps << ",\n"
-         << "  \"total\":       " << total << ",\n"
-         << "  \"identity\":    " << identity << ",\n"
-         << "  \"coverage\":    " << coverage << ",\n"
-         << "  \"time_ms\":     " << time_ms << ",\n"
-         << "  \"query\":       \"" << accession1 << "\",\n"
-         << "  \"target\":      \"" << accession2 << "\",\n"
-         << "  \"queryid\":       \"" << gene1 << "\",\n"
-         << "  \"targetid\":       \"" << gene2 << "\"\n"
+         << "  \"gap_open\":    " << GAP_OPEN   << ",\n"
+         << "  \"gap_extend\":  " << GAP_EXTEND << ",\n"
+         << "  \"score\":       " << finalScore << ",\n"
+         << "  \"matches\":     " << matches    << ",\n"
+         << "  \"gaps\":        " << gaps       << ",\n"
+         << "  \"total\":       " << total      << ",\n"
+         << "  \"identity\":    " << identity   << ",\n"
+         << "  \"coverage\":    " << coverage   << ",\n"
+         << "  \"time_ms\":     " << time_ms    << ",\n"
+         << "  \"query\":       \"" << getAccession(header1,mode) << "\",\n"
+         << "  \"target\":      \"" << getAccession(header2,mode) << "\"\n"
          << "}\n";
-      js.close();
-    } else {
-      cerr << "Error: cannot open global_stats.json\n";
+    }
+}
+
+//----------------------------------------------------------------------
+// C) Striped (AVX2) Smith–Waterman, plus band-window traceback
+//----------------------------------------------------------------------
+
+void stripedSmithWaterman(const char*     x,   int m,
+                          const char*     y,   int n,
+                          int             gap_open,
+                          int             gap_ext,
+                          ScoreFn         score_fn,
+                          std::string&    alnX,
+                          std::string&    alnY,
+                          std::vector<std::pair<int,int>>& path)
+
+{
+    // --- 1) the fast “striped” forward pass to find (end_i,end_j,maxScore) ---
+    const int W = 16;                           // 16 lanes of int16
+    int segLen = (n + W - 1) / W;
+    score_t* Hs = (score_t*)aligned_alloc(64, segLen*W*sizeof(score_t));
+    score_t* Es = (score_t*)aligned_alloc(64, segLen*W*sizeof(score_t));
+    memset(Hs, 0, segLen*W*sizeof(score_t));
+    memset(Es, 0, segLen*W*sizeof(score_t));
+    __m256i vGapO = _mm256_set1_epi16((int16_t)gap_open);
+    __m256i vGapE = _mm256_set1_epi16((int16_t)gap_ext);
+
+    int end_i=0, end_j=0;
+    score_t maxScore = 0;
+
+    for(int i=0;i<m;i++){
+        __m256i vF = _mm256_setzero_si256();
+        __m256i vHprev = _mm256_setzero_si256();
+        for(int s=0;s<segLen;s++){
+            // load stripe
+            __m256i vH = _mm256_load_si256((__m256i*)&Hs[s*W]);
+            __m256i vE = _mm256_load_si256((__m256i*)&Es[s*W]);
+
+            // build match vector
+            int16_t mat[W];
+            for(int k=0;k<W;k++){
+                int j = s*W + k;
+                mat[k] = (j<n ? score_fn(x[i], y[j]) : 0);
+            }
+            __m256i vM = _mm256_load_si256((__m256i*)mat);
+
+            // E = max(E - ext, H - open)
+            vE = _mm256_max_epi16(
+                    _mm256_subs_epi16(vE, vGapE),
+                    _mm256_subs_epi16(vH, vGapO)
+                 );
+            // F = max(F - ext, Hprev - open)
+            vF = _mm256_max_epi16(
+                    _mm256_subs_epi16(vF, vGapE),
+                    _mm256_subs_epi16(vHprev, vGapO)
+                 );
+            // H' = H + M
+            __m256i vHp = _mm256_adds_epi16(vH, vM);
+            // H = max(H', E, F, 0)
+            vH = _mm256_max_epi16(vHp, vE);
+            vH = _mm256_max_epi16(vH, vF);
+            vH = _mm256_max_epi16(vH, _mm256_setzero_si256());
+
+            // store back
+            _mm256_store_si256((__m256i*)&Hs[s*W], vH);
+            _mm256_store_si256((__m256i*)&Es[s*W], vE);
+            vHprev = vH;
+
+            // scan for max
+            int16_t buf[W];
+            _mm256_store_si256((__m256i*)buf, vH);
+            for(int k=0;k<W;k++){
+                int j = s*W + k;
+                if(j<n && buf[k] > maxScore){
+                    maxScore = buf[k];
+                    end_i = i;
+                    end_j = j;
+                }
+            }
+        }
     }
 
+    // free striped arrays
+    free(Hs);
+    free(Es);
+
+    // --- 2) banded SW in a small window around (end_i,end_j) for full traceback ---
+    const int B = 32;                          // half‐window size
+    int i0 = std::max(0, end_i - B), i1 = std::min(m, end_i + B);
+    int j0 = std::max(0, end_j - B), j1 = std::min(n, end_j + B);
+    int R = i1 - i0 + 1, C = j1 - j0 + 1;
+
+    // allocate band‐matrix and traceback
+    std::vector<std::vector<score_t>> H(R, std::vector<score_t>(C, 0));
+    std::vector<std::vector<char>>    T(R, std::vector<char>(C, 0));
+
+    // fill local SW
+    for(int ii = 1; ii < R; ++ii){
+        for(int jj = 1; jj < C; ++jj){
+            score_t msc = score_fn(x[i0+ii-1], y[j0+jj-1]);
+            score_t v = H[ii-1][jj-1] + msc;
+            score_t u = H[ii-1][jj]   + gap_open;
+            score_t l = H[ii][jj-1]   + gap_open;
+            score_t best = std::max({ (score_t)0, v, u, l });
+            H[ii][jj] = best;
+            if(best == 0)       T[ii][jj] = '0';
+            else if(best == v)  T[ii][jj] = 'D';
+            else if(best == u)  T[ii][jj] = 'U';
+            else                T[ii][jj] = 'L';
+        }
+    }
+
+    // traceback from local coords (ei,ej)
+    int ii = end_i - i0 + 1, jj = end_j - j0 + 1;
+    while(ii > 0 && jj > 0 && H[ii][jj] > 0){
+        path.emplace_back(j0 + jj, i0 + ii);
+        char c = T[ii][jj];
+        if(c == 'D'){
+            alnX.push_back(x[i0 + ii - 1]);
+            alnY.push_back(y[j0 + jj - 1]);
+            --ii; --jj;
+        }
+        else if(c == 'U'){
+            alnX.push_back(x[i0 + ii - 1]);
+            alnY.push_back('-');
+            --ii;
+        }
+        else { // 'L'
+            alnX.push_back('-');
+            alnY.push_back(y[j0 + jj - 1]);
+            --jj;
+        }
+    }
+    std::reverse(alnX.begin(), alnX.end());
+    std::reverse(alnY.begin(), alnY.end());
+    std::reverse(path.begin(), path.end());
 }
+
 /**
  * @brief Perform a local (Smith-Waterman) alignment of two sequences.
  *
@@ -737,286 +930,84 @@ void localalign(const std::string &x,
                 ScoreMode mode,
                 ScoreFn score_fn)
 {
-    int m = x.size(), n = y.size();
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    int chunkSize = (m + size - 1) / size;
-    int start     = rank * chunkSize;
-    int end       = std::min(start + chunkSize, m);
-    int localRows = end - start;
-
-    // Allocate full‐matrix DP for this rank's block: (localRows+1) × (n+1)
-    std::vector<std::vector<int>> dp(localRows + 1,
-                                     std::vector<int>(n + 1, 0));
-    vector<pair<int,int>> local_path;
-
-
-    // Receive the preceding row from rank-1, if any
-    if (rank > 0) {
-        MPI_Recv(dp[0].data(), n+1, MPI_INT,
-                 rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-
+    (void)mode;
     using Clock = std::chrono::high_resolution_clock;
     auto t_start = Clock::now();
 
-    struct Loc { int score, i, j; };
-    Loc localBest{0,0,0};
-
-    // Fill DP block
-    for (int ii = 1; ii <= localRows; ++ii) {
-        int gi = start + ii - 1;  // global row index
-        dp[ii][0] = 0;
-
-        for (int j = 1; j <= n; ++j) {
-            int ms = score_fn(x[gi], y[j - 1]);
-            int v  = dp[ii-1][j-1] + ms;
-            int u  = dp[ii-1][j]   + GAP_OPEN;
-            int l  = dp[ii][j-1]   + GAP_OPEN;
-            int s  = std::max({ v, u, l, 0 });
-            dp[ii][j] = s;
-
-            if (s > localBest.score) {
-                localBest = { s, gi, j };
-            }
-        }
-
-        if (verbose && (ii % 1000 == 0 || ii == localRows)) {
-            showProgressBar(ii, localRows);
-        }
-    }
-
-    // Send last row of this block to next rank
-    if (rank + 1 < size) {
-        MPI_Send(dp[localRows].data(), n+1, MPI_INT,
-                 rank + 1, 0, MPI_COMM_WORLD);
-    }
-
-    // Gather best hits from all ranks at rank 0
-    int mine[4] = { localBest.score, rank, localBest.i, localBest.j };
-    std::vector<int> all;
-    if (rank == 0) all.resize(4 * size);
-
-    MPI_Gather(mine, 4, MPI_INT,
-               rank == 0 ? all.data() : nullptr,
-               4, MPI_INT, 0, MPI_COMM_WORLD);
-
-    int bestScore = 0, bestRank = 0, bestI = 0, bestJ = 0;
-    if (rank == 0) {
-        for (int r = 0; r < size; ++r) {
-            int s = all[4*r];
-            if (s > bestScore) {
-                bestScore = s;
-                bestRank  = all[4*r + 1];
-                bestI     = all[4*r + 2];
-                bestJ     = all[4*r + 3];
-            }
-        }
-    }
-
-    // Broadcast the global best
-    MPI_Bcast(&bestRank, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&bestScore, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&bestI,     1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&bestJ,     1, MPI_INT, 0, MPI_COMM_WORLD);
-
-//    std::string modeDir = (mode == MODE_DNA ? "dna" : "protein");
-
-    // Perform traceback on rank == bestRank
+    // 1) Striped‐SW forward pass + banded‐traceback
     std::string alignedX, alignedY;
-    if (rank == bestRank) {
-        // Recompute full SW matrix up to (bestI,bestJ)
-        std::vector<std::vector<int>> fullDP(bestI+1,
-                                             std::vector<int>(bestJ+1, 0));
-        for (int i = 1; i <= bestI; ++i) {
-            fullDP[i][0] = 0;
-            for (int j = 1; j <= bestJ; ++j) {
-                int ms = score_fn(x[i-1], y[j-1]);
-                int v  = fullDP[i-1][j-1] + ms;
-                int u  = fullDP[i-1][j]   + GAP_OPEN;
-                int l  = fullDP[i][j-1]   + GAP_OPEN;
-                fullDP[i][j] = std::max({ v, u, l, 0 });
-            }
-        }
-
-    // 1) Prepare send buffer of size localRows*(n+1)
-    int cols = n+1, rows = localRows;
-    std::vector<int> sendbuf(rows * cols);
-    for(int i = 0; i < rows; ++i) {
-        // copy dp[i+1][0..n] into sendbuf
-        std::memcpy(&sendbuf[i*cols], dp[i+1].data(), cols * sizeof(int));
-    }
-
-    // 2) On rank 0, set up recvcounts and displacements
-    std::vector<int> recvcounts, displs;
-    std::vector<int> recvbuf;
-    if (rank == 0) {
-        recvcounts .resize(size);
-        displs      .resize(size);
-        // calculate each rank’s block size
-        for(int r = 0; r < size; ++r) {
-            int start_r   = r * ((m + size - 1)/size);
-            int end_r     = std::min(start_r + (m + size - 1)/size, m);
-            int localRows_r = std::max(0, end_r - start_r);
-            recvcounts[r] = localRows_r * cols;
-        }
-        // displacements:
-        displs[0] = 0;
-        for(int r = 1; r < size; ++r) {
-            displs[r] = displs[r-1] + recvcounts[r-1];
-        }
-        // allocate receive buffer for all non-zero rows
-        recvbuf.resize(displs[size-1] + recvcounts[size-1]);
-    }
-
-    // Gather all flattened blocks to rank 0
-    MPI_Gatherv(
-        sendbuf.data(),            // local send buffer
-        rows*cols, MPI_INT,
-        rank==0 ? recvbuf.data() : nullptr,
-        rank==0 ? recvcounts.data() : nullptr,
-        rank==0 ? displs.data()    : nullptr,
-        MPI_INT,
-        0, MPI_COMM_WORLD
+    std::vector<std::pair<int,int>> local_path;
+    stripedSmithWaterman(
+        x.data(), (int)x.size(),
+        y.data(), (int)y.size(),
+        (int)GAP_OPEN, (int)GAP_OPEN,
+        score_fn,
+        alignedX, alignedY, local_path
     );
 
-    // On rank 0, reconstruct fullDP and save it
-    if (rank == 0) {
-        // allocate fullDP with m+1 rows
-        std::vector<std::vector<int>> fullDP(m+1, std::vector<int>(cols));
-        // you already have dp[0] on rank 0 before the loop
-        fullDP[0] = dp[0];
+    // 2) Timing
+    auto t_end   = Clock::now();
+    auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
 
-        // now fill rows 1..m
-        for(int r = 0; r < size; ++r) {
-            int start_r   = r * ((m + size - 1)/size);
-            int end_r     = std::min(start_r + (m + size - 1)/size, m);
-            int localRows_r = std::max(0, end_r - start_r);
-            int offset    = displs[r];  // where this rank’s data begins in recvbuf
+    // 3) Compute stats
+    size_t total = alignedX.size(), gaps = 0, matches = 0;
+    for (size_t i = 0; i < total; ++i) {
+        if (alignedX[i]=='-' || alignedY[i]=='-')      ++gaps;
+        else if (alignedX[i]==alignedY[i])            ++matches;
+    }
+    double identity = double(matches) / total;
+    double coverage = double(total - gaps) / total;
+    int bestScore = matches - gaps * int(-GAP_OPEN);
+      // (or store maxScore from striped pass if you capture it)
 
-            for(int i = 0; i < localRows_r; ++i) {
-                // copy back into fullDP[start_r + 1 + i]
-                std::memcpy(
-                  fullDP[start_r + 1 + i].data(),
-                  &recvbuf[offset + i*cols],
-                  cols*sizeof(int)
-                );
-            }
-        }
-
-        // now save fullDP however you like:
-        if (binary) {
-          writeDPMatrix(fullDP, outdir +"/local_dp_matrix.bin");
-        } else if (txt) {
-          writeRawDPMatrix(fullDP, outdir +"/local_dp_matrix.txt");
-        }
+    // 4) Verbose console output
+    if (verbose) {
+        std::cout << "\n\nLocal Alignment Score: " << bestScore << "\n"
+                  << "Gap Open: "   << GAP_OPEN   << "\n"
+                  << "Matches: "    << matches    << "\n"
+                  << "Gaps:    "    << gaps       << "\n"
+                  << "Total:   "    << total      << "\n"
+                  << "Identity: "   << identity*100.0 << "%\n"
+                  << "Coverage: "   << coverage*100.0 << "%\n"
+                  << "Time:    "    << time_ms    << " ms\n"
+                  << "Query:   "    << header1    << "\n"
+                  << "Target:  "    << header2    << "\n";
+        printColoredAlignment(alignedX, alignedY);
     }
 
-
-        // Traceback from (bestI,bestJ)
-        int i = bestI, j = bestJ;
-        while (i > 0 && j > 0 && fullDP[i][j] > 0) {
-            local_path.emplace_back(j, i);
-            int cur = fullDP[i][j];
-            int ms  = score_fn(x[i-1], y[j-1]);
-            if      (cur == fullDP[i-1][j-1] + ms) {
-                alignedX.push_back(x[i-1]);
-                alignedY.push_back(y[j-1]);
-                --i; --j;
-            }
-            else if (cur == fullDP[i-1][j] + GAP_OPEN) {
-                alignedX.push_back(x[i-1]);
-                alignedY.push_back('-');
-                --i;
-            }
-            else {
-                alignedX.push_back('-');
-                alignedY.push_back(y[j-1]);
-                --j;
-            }
-        }
-        std::reverse(alignedX.begin(), alignedX.end());
-        std::reverse(alignedY.begin(), alignedY.end());
-        reverse(local_path.begin(), local_path.end());
-
-
-        // Timing and statistics
-        auto t_end   = Clock::now();
-        auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-
-        {
-          ofstream pf(outdir + "/local_path.txt");
-          for (auto &p : local_path)
-            pf << p.first << " " << p.second << "\n";
-        }
-
-        size_t total = alignedX.size(), gaps = 0, matches = 0;
-        for (size_t k = 0; k < total; ++k) {
-            if (alignedX[k]=='-' || alignedY[k]=='-') ++gaps;
-            else if (alignedX[k]==alignedY[k])         ++matches;
-        }
-        double identity = double(matches)/total;
-        double coverage = double(total-gaps)/total;
-
-        std::string acc1 = getAccession(header1, mode);
-        std::string acc2 = getAccession(header2, mode);
-        std::string gene1= getGeneSymbol(header1, mode);
-        std::string gene2= getGeneSymbol(header2, mode);
-
-        // Verbose output
-        if (verbose) {
-            std::cout << "\n\nLocal Alignment Score: " << bestScore << "\n"
-                      << "Gap Open: " << GAP_OPEN << "\n"
-                      << "Matches: "  << matches << "\n"
-                      << "Gaps:    "  << gaps    << "\n"
-                      << "Total:   "  << total   << "\n"
-                      << "Identity: " << identity*100.0 << "%\n"
-                      << "Coverage: " << coverage*100.0 << "%\n"
-                      << "Time:    "  << time_ms << " ms\n"
-                      << "Query:   "  << acc1   << "\n"
-                      << "Target:  "  << acc2   << "\n"
-                      << "QueryID: "  << gene1  << "\n"
-                      << "TargetID: " << gene2  << "\n";
-
-            printColoredAlignment(alignedX, alignedY);
-        }
-
-        // Write alignment file
-        std::ofstream outf(outdir +"/local_alignment.fasta");
-        if (outf) {
-            savePlainAlignment(getAccession(header1,mode),
-                               getAccession(header2,mode),
-                               alignedX, alignedY,
-                               outf);
-                outf.close();
-        }
-
-        // Write stats JSON
-        std::ofstream js(outdir +"/local_stats.json");
-        if (js) {
-            js << std::fixed << std::setprecision(6)
-               << "{\n"
-               << "  \"method\":   \"local\",\n"
-               << "  \"gap_open\": " << GAP_OPEN << ",\n"
-               << "  \"score\":    " << bestScore << ",\n"
-               << "  \"matches\":  " << matches   << ",\n"
-               << "  \"gaps\":     " << gaps      << ",\n"
-               << "  \"total\":    " << total     << ",\n"
-               << "  \"identity\": " << identity  << ",\n"
-               << "  \"coverage\": " << coverage  << ",\n"
-               << "  \"time_ms\":  " << time_ms   << ",\n"
-               << "  \"query\":    \"" << acc1  << "\",\n"
-               << "  \"target\":   \"" << acc2  << "\",\n"
-               << "  \"queryid\":  \"" << gene1 << "\",\n"
-               << "  \"targetid\": \"" << gene2 << "\"\n"
-               << "}\n";
-        }
+    // 5) Write local_path.txt
+    {
+      std::ofstream pf(outdir + "/local_path.txt");
+      for (auto &p : local_path)
+        pf << p.first << " " << p.second << "\n";
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    // 6) Write FASTA alignment
+    {
+      std::ofstream outf(outdir + "/local_alignment.fasta");
+      savePlainAlignment(header1, header2, alignedX, alignedY, outf);
+    }
+
+    // 7) Write JSON stats
+    {
+      std::ofstream js(outdir + "/local_stats.json");
+      js << std::fixed << std::setprecision(6)
+         << "{\n"
+         << "  \"method\":   \"local\",\n"
+         << "  \"gap_open\": "   << GAP_OPEN   << ",\n"
+         << "  \"score\":    "   << bestScore  << ",\n"
+         << "  \"matches\":  "   << matches    << ",\n"
+         << "  \"gaps\":     "   << gaps       << ",\n"
+         << "  \"total\":    "   << total      << ",\n"
+         << "  \"identity\": "   << identity   << ",\n"
+         << "  \"coverage\": "   << coverage   << ",\n"
+         << "  \"time_ms\":  "   << time_ms    << ",\n"
+         << "  \"query\":    \"" << header1    << "\",\n"
+         << "  \"target\":   \"" << header2    << "\"\n"
+         << "}\n";
+    }
 }
+
 
 /**
  * @brief Compute the Longest Common Subsequence (LCS) of two strings.
@@ -1152,6 +1143,8 @@ int main(int argc, char** argv) {
         std::string file1, file2, outdir = ".";
         int choice = -1;
         ScoreMode mode = MODE_DNA;
+        bool useGz = false;
+        std::string targetChr;
 
         // Parse arguments
         for (int i = 1; i < argc; ++i) {
@@ -1160,6 +1153,10 @@ int main(int argc, char** argv) {
                 file1 = argv[++i];
             } else if (arg == "--target" && i + 1 < argc) {
                 file2 = argv[++i];
+            } else if (arg == "--chrom" && i+1<argc) {
+                targetChr = argv[++i];
+            } else if (arg == "--gzipped" || arg == "--gz") {
+                useGz = true;
             } else if (arg == "--choice" && i + 1 < argc) {
                 choice = std::stoi(argv[++i]);
             } else if (arg == "--mode" && i + 1 < argc) {
@@ -1213,9 +1210,14 @@ int main(int argc, char** argv) {
         }
 
         std::string seq1, seq2, header1, header2;
-        if (rank == 0) {
-            processFasta(file1, header1, seq1);
-            processFasta(file2, header2, seq2);
+        if (rank==0) {
+            if (useGz) {
+                processFastaGz(file1, header1, seq1);
+                processFastaGz(file2, header2, seq2, targetChr);
+            } else {
+                processFasta(file1, header1, seq1);
+                processFasta(file2, header2, seq2, targetChr);
+            }
         }
 
         int len1 = seq1.size(), len2 = seq2.size();

@@ -47,8 +47,8 @@ rule build:
 rule run_alignment:
     input:
         aligner="aligner",
-        query="files/prot1.fasta",
-        target="files/prot2.fasta"
+        query="files/dna1.fasta",
+        target="files/dna2.fasta"
     output:
         "results/global_dp_matrix.txt",
         "results/local_dp_matrix.txt",
@@ -59,7 +59,7 @@ rule run_alignment:
           --query {input.query} \
           --target {input.target} \
           --choice 4 \
-          --mode protein \
+          --mode dna \
           --outdir results \
           --verbose \
           --gap_open -5 \
