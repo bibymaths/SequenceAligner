@@ -22,7 +22,7 @@ flip_and_downsample() {
   local infile="$1"
   local outfile="$2"
   local label="$3"
-  local max_dim=10000
+  local max_dim=50000
 
   local flip_tmp="${outfile}_flip.tmp"
   awk '{ buf[NR] = $0 } END { for (i = NR; i > 0; i--) print buf[i] }' "$infile" > "$flip_tmp"
