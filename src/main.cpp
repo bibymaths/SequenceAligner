@@ -712,7 +712,9 @@ void globalalign(const string &x, const string &y,
          << "  \"query\":       \"" << accession1 << "\",\n"
          << "  \"target\":      \"" << accession2 << "\",\n"
          << "  \"queryid\":       \"" << gene1 << "\",\n"
-         << "  \"targetid\":       \"" << gene2 << "\"\n"
+         << "  \"targetid\":       \"" << gene2 << "\",\n"
+         << "  \"query_length\": " << m << ",\n"
+         << "  \"target_length\": " << n << "\n"
          << "}\n";
       js.close();
     } else {
@@ -1010,7 +1012,9 @@ void localalign(const std::string &x,
                << "  \"query\":    \"" << acc1  << "\",\n"
                << "  \"target\":   \"" << acc2  << "\",\n"
                << "  \"queryid\":  \"" << gene1 << "\",\n"
-               << "  \"targetid\": \"" << gene2 << "\"\n"
+               << "  \"targetid\": \"" << gene2 << "\",\n"
+               << "  \"query_length\": " << m << ",\n"
+               << "  \"target_length\": " << n << "\n"
                << "}\n";
         }
     }
