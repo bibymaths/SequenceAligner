@@ -23,8 +23,8 @@ endif()
 find_package(OpenMP REQUIRED)
 
 # Find LZMA (XZ) compression library
-find_library(LZMA_LIBRARIES NAMES lzma HINTS /usr/local/lib /usr/lib)
-find_path(LZMA_INCLUDE_DIRS lzma.h HINTS /usr/local/include /usr/include)
+find_library(LZMA_LIBRARIES NAMES lzma HINTS /usr/local/lib /usr/lib /usr/bin)
+find_path(LZMA_INCLUDE_DIRS lzma.h HINTS /usr/local/include /usr/include /usr/bin)
 
 if(NOT LZMA_LIBRARIES OR NOT LZMA_INCLUDE_DIRS)
   message(FATAL_ERROR "liblzma not found. Make sure XZ is installed (e.g., brew install xz)")

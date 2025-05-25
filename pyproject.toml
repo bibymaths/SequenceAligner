@@ -7,7 +7,7 @@ authors = ["Abhinav Mishra <mishraabhinav36@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.12"
 snakemake = "^9.4.0"
 scikit-learn = "^1.6.1"
 matplotlib = "^3.10.3"
