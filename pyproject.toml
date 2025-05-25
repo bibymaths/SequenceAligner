@@ -1,5 +1,6 @@
 [tool.poetry]
 name = "sequencealigner"
+package-mode = false
 version = "0.1.0"
 description = ""
 authors = ["Abhinav Mishra <mishraabhinav36@gmail.com>"]
@@ -10,6 +11,8 @@ python = "^3.13"
 snakemake = "^9.4.0"
 scikit-learn = "^1.6.1"
 matplotlib = "^3.10.3"
+fastapi = "^0.115.12"
+uvicorn = "^0.34.2"
 
 [build-system]
 requires = ["poetry-core"]
