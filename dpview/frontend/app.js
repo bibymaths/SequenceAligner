@@ -1,39 +1,36 @@
-const app = new PIXI.Application({ width: 800, height: 800, backgroundColor: 0x111111, resolution: 1 });
-document.body.appendChild(app.view);
+const canvas = document.getElementById("heatmap");
+const ctx = canvas.getContext("2d");
 
-let offsetX = 0, offsetY = 0;
-const tileSize = 100, cellSize = 8;
+async function drawDownsampled() {
+  try {
+    const res = await fetch("http://localhost:8000/downsampled");
+    const data = await res.json();
 
-async function fetchTile(x, y) {
-  const res = await fetch(`http://localhost:8000/tile?x=${x}&y=${y}&width=${tileSize}&height=${tileSize}`);
-  return res.json();
-}
-
-function valueToColor(v) {
-  const norm = Math.min(255, Math.max(0, Math.floor((v + 5000) / 10000 * 255)));
-  return PIXI.utils.rgb2hex([norm / 255, norm / 255, norm / 255]);
-}
-
-async function drawTile(x, y) {
-  const data = await fetchTile(x, y);
-  const g = new PIXI.Graphics();
-  for (let i = 0; i < data.length; i++) {
-    for (let j = 0; j < data[i].length; j++) {
-      g.beginFill(valueToColor(data[i][j]));
-      g.drawRect(j * cellSize, i * cellSize, cellSize, cellSize);
-      g.endFill();
+    if (!data || !data.length) {
+      console.error("No matrix data received");
+      return;
     }
+
+    console.log(`Drawing matrix: ${data.length} rows × ${data[0].length} cols`);
+
+    const rows = data.length;
+    const cols = data[0].length;
+
+    const cellWidth = canvas.width / cols;
+    const cellHeight = canvas.height / rows;
+
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const v = data[i][j];
+        const norm = Math.min(1, Math.max(0, (v + 10000) / 20000));
+        const color = d3.interpolateInferno(norm);
+        ctx.fillStyle = color;
+        ctx.fillRect(j * cellWidth, i * cellHeight, cellWidth, cellHeight);
+      }
+    }
+  } catch (e) {
+    console.error("Draw failed:", e);
   }
-  app.stage.removeChildren();
-  app.stage.addChild(g);
 }
 
-drawTile(offsetX, offsetY);
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowRight') offsetX += tileSize;
-  if (e.key === 'ArrowLeft') offsetX = Math.max(0, offsetX - tileSize);
-  if (e.key === 'ArrowDown') offsetY += tileSize;
-  if (e.key === 'ArrowUp') offsetY = Math.max(0, offsetY - tileSize);
-  drawTile(offsetX, offsetY);
-});
+drawDownsampled();

@@ -33,9 +33,9 @@ def parse_args():
     p = argparse.ArgumentParser(description="Analysis pipeline for DP matrix with int32 header")
     p.add_argument("--bin", required=True,
                    help="Path to binary DP matrix file with int32 header")
-    p.add_argument("--down_rows", type=int, default=50000,
+    p.add_argument("--down_rows", type=int, default=10000,
                    help="Heatmap downsample rows")
-    p.add_argument("--down_cols", type=int, default=50000,
+    p.add_argument("--down_cols", type=int, default=10000,
                    help="Heatmap downsample cols")
     p.add_argument("--batch", type=int, default=1000,
                    help="Batch size for IncrementalPCA/clustering")
@@ -62,8 +62,6 @@ def load_matrix(bin_path):
     logging.info(f"Loaded header dims: {rows}×{cols}")
     # Memory-map int32 body starting at offset 8
     mat_int = np.memmap(bin_path, dtype='<i4', mode='r', offset=8, shape=(rows, cols))
-    # Convert to float64 for downstream
-    # mat = np.array(mat_int, dtype=np.intc)
     return mat_int, rows, cols
 
 
@@ -79,13 +77,14 @@ def downsample(mat, target_rows, target_cols):
 
 def plot_heatmap(mat, path, cmap='viridis'):
     plt.figure(figsize=(8,8))
-    plt.imshow(mat,
-               aspect='auto',
-               cmap='viridis',
-               vmin=mat.min(),  # optional: fixes your color scale
-               vmax=mat.max(),  # optional
-               interpolation='nearest'  # no smoothing & minimal overhead
-               )
+    # plt.imshow(mat,
+    #            aspect='auto',
+    #            cmap='viridis',
+    #            vmin=mat.min(),  # optional: fixes your color scale
+    #            vmax=mat.max(),  # optional
+    #            interpolation='nearest'  # no smoothing & minimal overhead
+    #            )
+    plt.matshow(mat)
     plt.axis('off')
     plt.savefig(path, dpi=150, bbox_inches='tight', pad_inches=0)
     plt.close()
@@ -155,7 +154,7 @@ def main():
     mat, rows, cols = load_matrix(args.bin)
 
     ds = downsample(mat, args.down_rows, args.down_cols)
-    plot_heatmap(ds, 'downsampled_heatmap.png')
+    plot_heatmap(ds, 'downsampled_heatmap_1.png')
 
     # ipca, n_sel, cumvar = incremental_pca(mat, args.batch, args.max_components, args.var_threshold)
     # scree_plot(cumvar, 'scree_plot.png')
