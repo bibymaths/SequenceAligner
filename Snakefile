@@ -69,7 +69,7 @@ rule run_alignment:
 
 rule visualize:
     input:
-        script="plotter/directvis.sh",
+        script="plotter/plotDP.sh",
         lcs="results/lcs_traceback.txt",
         globalalign="results/global_dp_matrix.txt",
         localalign="results/local_dp_matrix.txt"
