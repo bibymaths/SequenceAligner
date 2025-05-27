@@ -22,14 +22,6 @@ endif()
 # Find OpenMP
 find_package(OpenMP REQUIRED)
 
-# Find LZMA (XZ) compression library
-find_library(LZMA_LIBRARIES NAMES lzma HINTS /usr/local/lib /usr/lib /usr/bin)
-find_path(LZMA_INCLUDE_DIRS lzma.h HINTS /usr/local/include /usr/include /usr/bin)
-
-if(NOT LZMA_LIBRARIES OR NOT LZMA_INCLUDE_DIRS)
-  message(FATAL_ERROR "liblzma not found. Make sure XZ is installed (e.g., brew install xz)")
-endif()
-
 # Enable AddressSanitizer in Debug builds
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   message(STATUS "Enabling AddressSanitizer")
@@ -42,14 +34,12 @@ add_executable(aligner src/main.cpp)
 
 target_include_directories(aligner PRIVATE
   ${MPI_CXX_INCLUDE_DIRS}
-  ${LZMA_INCLUDE_DIRS}
 )
 
 # Include directories
 target_link_libraries(aligner PRIVATE
   ${MPI_CXX_LIBRARIES}
   OpenMP::OpenMP_CXX
-  ${LZMA_LIBRARIES}
 )
 
 # Common compiler warnings and flags
