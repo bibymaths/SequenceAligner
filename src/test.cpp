@@ -9,8 +9,6 @@
 * MPI for parallel processing across multiple nodes and OpenMP for
 * parallelization within each node.
 */
-
-#include <lzma.h>
 #include <array>
 #include <cstring>
 #include <iostream>
@@ -405,79 +403,6 @@ void writeDPMatrix(const std::vector<std::vector<int>>& dp, const std::string& f
     out.close();
 }
 
-
-/**
- * @brief Write the DP matrix to a compressed XZ file.
- *
- * This function flattens the DP matrix into a single buffer, then compresses
- * it using LZMA/XZ compression and writes to the specified file.
- *
- * @param dp       The DP matrix (2D vector).
- * @param filename The output filename (should end with .xz).
- * @return true on success, false on failure.
- */
-bool writeDPMatrixXZ(const std::vector<std::vector<int>>& dp, const std::string& filename) {
-    // 1) Flatten into one big int32_t buffer: [rows, cols, ...data...]
-    int32_t rows = dp.size();
-    int32_t cols = dp[0].size();
-    size_t totalInts = 2 + size_t(rows) * size_t(cols);
-    std::vector<int32_t> buffer;
-    buffer.reserve(totalInts);
-    buffer.push_back(rows);
-    buffer.push_back(cols);
-    for (const auto &row : dp) {
-        buffer.insert(buffer.end(), row.begin(), row.end());
-    }
-
-    // 2) Prepare LZMA encoder
-    lzma_stream strm = LZMA_STREAM_INIT;
-    lzma_ret ret = lzma_easy_encoder(&strm,
-        /* preset = */ LZMA_PRESET_DEFAULT,
-        /* check = */ LZMA_CHECK_CRC64);
-    if (ret != LZMA_OK) {
-        std::cerr << "Failed to init XZ encoder\n";
-        return false;
-    }
-
-    // 3) Open output .xz file
-    std::ofstream out(filename, std::ios::binary);
-    if (!out) {
-        std::cerr << "Cannot open " << filename << " for writing\n";
-        lzma_end(&strm);
-        return false;
-    }
-
-    // 4) Streaming encode in chunks
-    const uint8_t *inPtr = reinterpret_cast<const uint8_t*>(buffer.data());
-    size_t inSize = buffer.size() * sizeof(int32_t);
-    const size_t CHUNK = 1 << 20;  // 1 MiB
-    std::vector<uint8_t> outBuf(CHUNK);
-
-    strm.next_in   = inPtr;
-    strm.avail_in  = inSize;
-
-    do {
-        strm.next_out  = outBuf.data();
-        strm.avail_out = outBuf.size();
-
-        // when avail_in > 0 use RUN, then FINISH
-        ret = lzma_code(&strm,
-            strm.avail_in ? LZMA_RUN : LZMA_FINISH);
-        size_t wrote = outBuf.size() - strm.avail_out;
-        out.write(reinterpret_cast<char*>(outBuf.data()), wrote);
-    } while (ret == LZMA_OK);
-
-    // 5) Cleanup
-    lzma_end(&strm);
-    out.close();
-
-    if (ret != LZMA_STREAM_END) {
-        std::cerr << "Compression error: " << ret << "\n";
-        return false;
-    }
-    return true;
-}
-
 /**
  * @brief Write a character matrix to a file.
  *
@@ -676,12 +601,11 @@ void globalalign(const string &x, const string &y,
 
     if (binary) {
         writeDPMatrix(fullDP, outdir +"/global_dp_matrix.bin");
-        writeDPMatrixXZ(fullDP, outdir + "/global_dp_matrix.xz");
-    }
-    if (txt) {
+    } else if (txt) {
         writeRawDPMatrix(fullDP, outdir +"/global_dp_matrix.txt");
+    } else {
+        ;
     }
-
     // Traceback
     string alignedX, alignedY;
     int i = m, j = n;
@@ -987,10 +911,7 @@ void localalign(const std::string &x,
         // now save fullDP however you like:
         if (binary) {
           writeDPMatrix(fullDP, outdir +"/local_dp_matrix.bin");
-          writeDPMatrixXZ(fullDP, outdir + "/local_dp_matrix.xz");
-        }
-
-        if (txt) {
+        } else if (txt) {
           writeRawDPMatrix(fullDP, outdir +"/local_dp_matrix.txt");
         }
     }

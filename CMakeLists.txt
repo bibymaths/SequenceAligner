@@ -38,7 +38,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # Create executable
-add_executable(aligner src/test.cpp)
+add_executable(aligner src/main.cpp)
 
 target_include_directories(aligner PRIVATE
   ${MPI_CXX_INCLUDE_DIRS}
