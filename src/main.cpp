@@ -313,68 +313,55 @@ void saveLCS(const std::string &id,
 
 
 /**
- * @brief Print the aligned sequences with color coding.
+ * @brief Print two aligned sequences with color coding.
  *
- * This function prints two aligned sequences side by side, with color coding:
- * - Green for matches
- * - Red for gaps
- * - Cyan for mismatches
+ * Matches are printed in green, mismatches in cyan, and gaps in red.
+ * The alignment is printed in blocks of LINE_WIDTH characters.
  *
- * @param seq1 The first aligned sequence.
- * @param seq2 The second aligned sequence.
- * @param os   Output stream (default is std::cout).
+ * @param seq1_aln  Aligned sequence 1 (with gaps).
+ * @param seq2_aln  Aligned sequence 2 (with gaps).
+ * @param os        Output stream (default is std::cout).
  */
-void printColoredAlignment(const string &seq1, const string &seq2, ostream &os = cout) {
-    size_t aln_length = seq1.size(); // Assuming seq1 and seq2 are already aligned and have same length
-    if (aln_length == 0) {
-        os << "No alignment to print.\n";
-        return;
-    }
+void printColoredAlignment(const std::string &seq1_aln, const std::string &seq2_aln, std::ostream &os = std::cout) {
+    size_t aln_len = seq1_aln.length();
+    if (aln_len == 0) { os << "No alignment to print.\n"; return; }
+    if (seq1_aln.length() != seq2_aln.length()) { os << "Error: Aligned sequences have different lengths.\n"; return;}
 
-    size_t pos1_ungapped_count = 0; // Running count of non-gap characters from seq1
-    size_t pos2_ungapped_count = 0; // Running count of non-gap characters from seq2
+    size_t pos1_count = 0, pos2_count = 0;
+    for (size_t i = 0; i < aln_len; i += LINE_WIDTH) {
+        size_t end_blk = std::min(i + LINE_WIDTH, aln_len);
+        size_t blk_start_p1 = pos1_count + 1;
+        size_t blk_start_p2 = pos2_count + 1;
+        size_t current_blk_end_p1 = pos1_count;
+        size_t current_blk_end_p2 = pos2_count;
 
-    for (size_t i = 0; i < aln_length; i += LINE_WIDTH) {
-        size_t end_block = min(i + LINE_WIDTH, aln_length); // End of the current block in the alignment
-
-        // Store the ungapped start positions for this block
-        size_t block_start_pos1 = pos1_ungapped_count + 1;
-        size_t block_start_pos2 = pos2_ungapped_count + 1;
-
-        // Temporary counters for ungapped characters within the current block,
-        // to correctly display end positions for the block lines.
-        size_t current_block_end_pos1 = pos1_ungapped_count;
-        size_t current_block_end_pos2 = pos2_ungapped_count;
-
-        // Print Sequence 1 part of the block
-        os << std::setw(6) << block_start_pos1 << " ";
-        for (size_t j = i; j < end_block; ++j) {
-            if (seq1[j] == seq2[j]) os << GREEN << seq1[j] << RESET;
-            else if (seq1[j] == '-' || seq2[j] == '-') os << RED << seq1[j] << RESET;
-            else os << CYAN << seq1[j] << RESET;
-            if (seq1[j] != '-') {
-                current_block_end_pos1++;
-            }
+        os << std::setw(6) << blk_start_p1 << " ";
+        for (size_t j = i; j < end_blk; ++j) {
+            if (seq1_aln[j] == seq2_aln[j]) os << GREEN << seq1_aln[j] << RESET;
+            else if (seq1_aln[j] == '-' || seq2_aln[j] == '-') os << RED << seq1_aln[j] << RESET;
+            else os << CYAN << seq1_aln[j] << RESET;
+            if (seq1_aln[j] != '-') current_blk_end_p1++;
         }
-        os << " " << current_block_end_pos1 << "\n";
+        os << " " << current_blk_end_p1 << "\n";
 
-        // Print Sequence 2 part of the block
-        os << std::setw(6) << block_start_pos2 << " ";
-        for (size_t j = i; j < end_block; ++j) {
-            if (seq1[j] == seq2[j]) os << GREEN << seq2[j] << RESET;
-            else if (seq1[j] == '-' || seq2[j] == '-') os << RED << seq2[j] << RESET; // Note: color based on seq1[j] vs seq2[j]
-            else os << CYAN << seq2[j] << RESET;
-            if (seq2[j] != '-') {
-                current_block_end_pos2++;
-            }
+        os << "       "; // Spacer for alignment bar or consensus
+        for (size_t j = i; j < end_blk; ++j) {
+            if (seq1_aln[j] == seq2_aln[j]) os << "|"; // Match
+            else if (seq1_aln[j] == '-' || seq2_aln[j] == '-') os << " "; // Gap
+            else os << "."; // Mismatch
         }
-        os << " " << current_block_end_pos2 << "\n";
+        os << "\n";
 
-        os << "\n"; // Add an extra newline between blocks
-
-        // Update the master ungapped counts
-        pos1_ungapped_count = current_block_end_pos1;
-        pos2_ungapped_count = current_block_end_pos2;
+        os << std::setw(6) << blk_start_p2 << " ";
+        for (size_t j = i; j < end_blk; ++j) {
+            if (seq1_aln[j] == seq2_aln[j]) os << GREEN << seq2_aln[j] << RESET;
+            else if (seq1_aln[j] == '-' || seq2_aln[j] == '-') os << RED << seq2_aln[j] << RESET;
+            else os << CYAN << seq2_aln[j] << RESET;
+            if (seq2_aln[j] != '-') current_blk_end_p2++;
+        }
+        os << " " << current_blk_end_p2 << "\n\n";
+        pos1_count = current_blk_end_p1;
+        pos2_count = current_blk_end_p2;
     }
 }
 
