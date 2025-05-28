@@ -3,28 +3,26 @@
 #include <iostream>
 #include <chrono>
 #include <iomanip>
-#include <fstream>       // For file operations
+#include <fstream>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <map>
-#include <numeric>       // For std::iota
-#include <stdexcept>     // For std::runtime_error
-#include <omp.h>         // For OpenMP
-#include <immintrin.h>   // For AVX intrinsics (if used)
+#include <numeric>
+#include <stdexcept>
+#include <omp.h>
+#include <immintrin.h>
 #include <mpi.h>
 #include <sstream>
-// #include "EDNAFULL.h" // Assumed to be provided as separate header files
-// #include "EBLOSUM62.h"// with the matrix data. For this example, they are placeholders.
 #include <unordered_map>
 #include <filesystem>
-#include <climits>       // For INT_MIN, INT_MAX
-#include <memory>        // For std::unique_ptr
+#include <climits>
+#include <memory>
 
-// Dummy EDNAFULL and EBLOSUM62 matrices for compilation if headers are not present
+
 #ifndef EDNAFULL_MATRIX_DEFINED
 #define EDNAFULL_MATRIX_DEFINED
-const int EDNAFULL_SIZE = 15; // Example size based on N,X being 14th index
+const int EDNAFULL_SIZE = 15;
 int EDNAFULL_matrix[EDNAFULL_SIZE][EDNAFULL_SIZE] = {
 // A  C  G  T  R  Y  S  W  K  M  B  D  H  V  N (X)
   {5,-4,-4,-4, 1,-4, 1, 1,-4, 1,-4, 1, 1, 1,-2}, // A
@@ -81,7 +79,7 @@ int EBLOSUM62_matrix[EBLOSUM62_SIZE][EBLOSUM62_SIZE] = {
 bool verbose = false;
 bool binary = false;
 bool txt = false;
-int rank; // MPI rank, to be initialized in main
+int rank;
 
 enum ScoreMode { MODE_DNA, MODE_PROTEIN };
 using ScoreFn = int(*)(char, char);
@@ -95,20 +93,23 @@ static const int LINE_WIDTH = 80;
 #define RED   "\033[31m"
 #define CYAN  "\033[36m"
 
-// -------- Suffix Array Construction --------
+// Suffix Array Construction
+// This function constructs the suffix array for a given string using a
+// O(n log n) algorithm. It sorts the suffixes based on their ranks and
+// iteratively refines the ranks until they stabilize.
 std::vector<int> suffix_array_construction(const std::string& s) {
     int n = s.length();
     std::vector<int> sa_arr(n);
     if (n == 0) return sa_arr;
     std::iota(sa_arr.begin(), sa_arr.end(), 0);
 
-    std::vector<int> rank_arr(n); // Renamed to avoid conflict with global 'rank'
+    std::vector<int> rank_arr(n);
     for (int i = 0; i < n; ++i) {
         rank_arr[i] = static_cast<unsigned char>(s[i]);
     }
 
     std::vector<int> tmp_rank_arr(n);
-    for (int k_iter = 1; ; k_iter <<= 1) { // Renamed k to k_iter
+    for (int k_iter = 1; ; k_iter <<= 1) {
         std::sort(sa_arr.begin(), sa_arr.end(), [&](int a, int b) {
             if (rank_arr[a] != rank_arr[b]) {
                 return rank_arr[a] < rank_arr[b];
@@ -142,7 +143,8 @@ std::vector<int> suffix_array_construction(const std::string& s) {
     return sa_arr;
 }
 
-// -------- FMIndex Class --------
+// FM Index Class
+// This class implements the FM-index data structure for fast substring search.
 class FMIndex {
 public:
     std::string text_with_sentinel;

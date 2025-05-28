@@ -1,5 +1,6 @@
 # Prerequisites
 *.d
+*.fmidx
 
 # Build directories
 build/
@@ -11,7 +12,7 @@ data/
 # Results directories
 results*/
 aligner
-
+fmindex
 # Compiled Object files
 *.slomake
 *.lo
