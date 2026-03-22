@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Argument Check
 if [ "$#" -ne 4 ]; then
-  echo "Usage: $0 <lcs_traceback_file> <global_dp_matrix.txt> <local_dp_matrix.txt>"
+  echo "Usage: $0 <lcs_traceback_file> <global_dp_matrix.txt> <local_dp_matrix.txt> <outdir>"
   exit 1
 fi
 
@@ -16,6 +16,28 @@ OUTPREFIX="${OUTDIR}/plot"
 STATS_DIR=$(dirname "$GLOBAL_DP_MATRIX")
 
 mkdir -p "$OUTDIR"
+
+# --- NEW: Identify Orientation & Scale ---
+# Read lengths to dynamically size the plots and arrange the final summary.png
+Q_LEN=$(jq -r '.query_length // 1' "${STATS_DIR}/global_stats.json" 2>/dev/null || echo 1)
+T_LEN=$(jq -r '.target_length // 1' "${STATS_DIR}/global_stats.json" 2>/dev/null || echo 1)
+
+if [ "$Q_LEN" -ge "$T_LEN" ]; then
+  # Tall orientation (Query/Y-axis is longer)
+  PLOT_H=1200
+  PLOT_W=$(( 1200 * T_LEN / Q_LEN ))
+  [ "$PLOT_W" -lt 500 ] && PLOT_W=500
+  TILE_LAYOUT="4x1"
+else
+  # Wide orientation (Target/X-axis is longer)
+  PLOT_W=1200
+  PLOT_H=$(( 1200 * Q_LEN / T_LEN ))
+  [ "$PLOT_H" -lt 500 ] && PLOT_H=500
+  TILE_LAYOUT="1x4"
+fi
+
+echo "Orientation Detected: Query=${Q_LEN}, Target=${T_LEN}"
+echo "Canvas Size: ${PLOT_W}x${PLOT_H} | Layout: ${TILE_LAYOUT}"
 
 # Flip + Optional Downsampling
 flip_and_downsample() {
@@ -88,12 +110,11 @@ plot_matrix() {
   fi
 
   gnuplot <<EOF
-set terminal pngcairo size 1000,1000 enhanced font 'Helvetica,10'
+set terminal pngcairo size ${PLOT_W},${PLOT_H} enhanced font 'Helvetica,10'
 set output '${outfile}.png'
 unset key; unset border; unset xtics; unset ytics; unset title
 set colorbox
 set cblabel "${colorlabel}" font ",12" offset 2,0
-set size ratio -1
 set margins 0,0,0,0
 set view map
 $palette
@@ -131,15 +152,15 @@ format_stats() {
   local title="$2"
   jq -r --arg title "$title" '
     "\($title)\n\n" +
-    "Query:      \(.queryid)\n" +
-    "Target:     \(.targetid)\n" +
-    "Score:      \(.score)\n" +
-    "Matches:    \(.matches)\n" +
-    "Gaps:       \(.gaps)\n" +
-    "Total:      \(.total)\n" +
-    "Identity:   \((.identity * 100) | round)%\n" +
-    "Coverage:   \((.coverage * 100) | round)%\n" +
-    "Time (ms):  \(.time_ms)"
+    "Query:      \(.queryid // .query // "N/A")\n" +
+    "Target:     \(.targetid // .target // "N/A")\n" +
+    "Score:      \(.score // 0)\n" +
+    "Matches:    \(.matches // 0)\n" +
+    "Gaps:       \(.gaps // 0)\n" +
+    "Total:      \(.total // .aligned_length // 0)\n" +
+    "Identity:   \(((.identity // 0) * 100) | round)%\n" +
+    "Coverage:   \(((.coverage // .coverage_aligned // 0) * 100) | round)%\n" +
+    "Time (ms):  \(.time_ms // 0)"
   ' "$file"
 }
 
@@ -151,18 +172,24 @@ format_stats "${STATS_DIR}/local_stats.json" "Local Alignment Stats" >> "${OUTPR
 for type in global local; do
   label=$(echo "$type" | tr '[:lower:]' '[:upper:]')
   magick "${OUTPREFIX}_${type}.png" \
-    -gravity north -pointsize 28 -annotate +0+40 "${label} DP Matrix" \
+    -gravity north -background white -splice 0x80 \
+    -gravity north -pointsize 28 -annotate +0+20 "${label} DP Matrix" \
+    -bordercolor white -border 20 \
+    -set units PixelsPerInch -set density 600 \
     "${OUTPREFIX}_${type}_labeled.png"
 done
 
 magick "${OUTPREFIX}_lcs.png" \
   -gravity north -background white -splice 0x80 \
   -gravity north -pointsize 28 -annotate +0+20 "LCS Traceback" \
+  -bordercolor white -border 20 \
+  -set units PixelsPerInch -set density 600 \
   "${OUTPREFIX}_lcs_labeled.png"
 
-magick -size 1000x1000 xc:white \
-  -gravity northwest -pointsize 22 \
-  -annotate +50+100 "@${OUTPREFIX}_stats.txt" \
+magick -background white -fill black -font Courier -pointsize 20 \
+  -gravity northwest label:"@${OUTPREFIX}_stats.txt" \
+  -bordercolor white -border 50 \
+  -set units PixelsPerInch -set density 600 \
   "${OUTPREFIX}_stats.png"
 
 # Montage and Final Check
@@ -173,15 +200,17 @@ for img in "${OUTPREFIX}"_{global_labeled,local_labeled,lcs_labeled,stats}.png; 
   fi
 done
 
+# Montage with Smart Tile Orientation and 600 DPI
 montage \
   "${OUTPREFIX}_global_labeled.png" "${OUTPREFIX}_local_labeled.png" \
-  "${OUTPREFIX}_lcs_labeled.png" "${OUTPREFIX}_stats.png" \
-  -tile 2x2 -geometry +10+10 -background white \
+  "${OUTPREFIX}_lcs_labeled.png" \
+  -tile ${TILE_LAYOUT} -geometry +10+10 -background white \
+  -set units PixelsPerInch -set density 600 \
   "${OUTDIR}/summary.png"
 
 # Cleanup
 rm -f "${OUTPREFIX}"_lcs_numeric.txt
 rm -f "${OUTPREFIX}"_*_final.txt
 rm -f "${OUTPREFIX}"_global.png "${OUTPREFIX}"_local.png "${OUTPREFIX}"_lcs.png
-rm -f "${OUTPREFIX}"_global_labeled.png "${OUTPREFIX}"_local_labeled.png "${OUTPREFIX}"_lcs_labeled.png "${OUTPREFIX}_stats.png"
+#rm -f "${OUTPREFIX}"_global_labeled.png "${OUTPREFIX}"_local_labeled.png "${OUTPREFIX}"_lcs_labeled.png "${OUTPREFIX}_stats.png"
 rm -f "${OUTPREFIX}"_*_path_flipped.txt

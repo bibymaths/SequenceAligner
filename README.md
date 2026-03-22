@@ -1,7 +1,7 @@
 <img src="docs/assets/logo.png" alt="SequenceAligner" width="300">
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg) ![CMake](https://img.shields.io/badge/CMake-≥3.10-blue.svg)
-[![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html) 
+[![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15414690.svg)](https://doi.org/10.5281/zenodo.15414690)
 
 A simple and efficient C++ implementation of three classic sequence alignment algorithms:
@@ -328,6 +328,21 @@ To run on local machine, use the following command:
   [--gap_extend <float>] \
   [--verbose]
 ```
+
+### 📝 Note on FM-Index Anchoring with Proteins
+
+If you see the message `"FM-index anchoring unavailable/failed. Falling back to MPI full DP"` during protein alignment,
+this is **expected behavior, not a bug.**
+
+* **Exact Matches vs. Similarity:** The FM-Index relies on finding exact substring matches (k-mers, typically 5-8
+  characters long) to build anchors. Distant protein sequences (e.g., <30% identity) often preserve *chemical
+  similarity* rather than exact character identity, meaning they may only share very short exact matches (2-3 amino
+  acids).
+* **Smart Fallback:** Because the sequences lack exact matches long enough to safely anchor the alignment, the program
+  intentionally skips the FM-Index phase. It gracefully falls back to the full Smith-Waterman or Needleman-Wunsch DP
+  matrix (using BLOSUM62) to ensure a biologically accurate alignment.
+* **Why not lower the k-mer size?** Forcing a tiny k-mer threshold (like `k=3`) on proteins would result in massive
+  amounts of random, noisy seeds, completely destroying both accuracy and performance.
 
 ---
 
