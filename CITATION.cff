@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Mishra"
+    given-names: "Abhinav"
+title: "SequenceAligner"
+abstract: "A simple and efficient C++ implementation of three classic sequence alignment algorithms: Longest Common Subsequence (LCS), Global Alignment (Needleman-Wunsch), and Local Alignment (Smith-Waterman). The alignments are visualized with colored base-level matches and mismatches for clarity."
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.15414690
+repository-code: "https://github.com/bibymaths/SequenceAligner"
+url: "https://bibymaths.github.io/SequenceAligner/"
+license: "BSD-3-Clause"
+keywords:
+  - bioinformatics
+  - sequence-alignment
+  - cpp
+  - openmpi
+  - needleman-wunsch
+  - smith-waterman
+  - longest-common-subsequence

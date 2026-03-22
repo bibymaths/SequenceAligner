@@ -1,0 +1,44 @@
+# Default configuration for the sequence alignment benchmarking framework.
+
+# This file specifies the input FASTA files, the number of times to run
+# each tool, optional timeouts and the number of threads to use. Paths
+# may be relative to the repository root or absolute. Edit these values
+# to point to your own query and target sequences before running the
+# benchmark.
+
+# DNA inputs
+dna:
+  # Path to the FASTA file containing one or more DNA query sequences.
+  # Only BLAST (blastn), Bowtie2 and BWA will be executed on these
+  # sequences. Bowtie2 and BWA require a single‑sequence query; if
+  # multiple sequences are provided, only the first will be considered.
+  query: path/to/query_dna.fasta
+
+  # Path to the FASTA file containing the DNA target (reference) sequence.
+  target: path/to/target_dna.fasta
+
+# Protein inputs
+protein:
+  # Path to the FASTA file with one or more protein query sequences.
+  # Supported tools for protein are BLAST (blastp), MAFFT and Clustal
+  # Omega. Bowtie2 and BWA do not support proteins and will be skipped.
+  query: path/to/query_protein.fasta
+
+  # Path to the FASTA file with the protein target sequence.
+  target: path/to/target_protein.fasta
+
+# Number of independent runs for each tool. Setting this greater than
+# one will execute each tool multiple times and report aggregated
+# statistics (mean, median, standard deviation, min and max).
+runs: 3
+
+# Maximum number of seconds to allow each tool command to run. If a
+# command exceeds this timeout it will be terminated and the run will
+# be recorded as a failure (NA metrics). Set to null to disable the
+# timeout.
+timeout: 300
+
+# Number of threads to request from the alignment tools. Many tools
+# support multi‑threading; set this value according to your machine’s
+# capabilities.
+threads: 4
