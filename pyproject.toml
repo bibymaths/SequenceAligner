@@ -1,20 +1,22 @@
-[tool.poetry]
+[project]
 name = "sequencealigner"
-package-mode = false
 version = "0.1.0"
-description = ""
-authors = ["Abhinav Mishra <mishraabhinav36@gmail.com>"]
+description = "SequenceAligner project environment"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-snakemake = "^9.4.0"
-scikit-learn = "^1.6.1"
-matplotlib = "^3.10.3"
-fastapi = "^0.115.12"
-uvicorn = "^0.34.2"
-tqdm = "^4.67.1"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+authors = [
+    { name = "Abhinav Mishra", email = "mishraabhinav36@gmail.com" }
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "mkdocs-material",
+    "pytest",
+    "mypy",
+    "ruff",
+    "mkdocs",
+    "mkdocstrings[python]",
+    "pystrings",
+    "fastapi",
+]

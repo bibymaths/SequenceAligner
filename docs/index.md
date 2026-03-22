@@ -1,41 +1,45 @@
-# SequenceAligner Documentation
+<img src="assets/logo.png" alt="SequenceAligner" width="300">
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg) ![CMake](https://img.shields.io/badge/CMake-≥3.10-blue.svg)
 [![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html)
-
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15414690.svg)](https://doi.org/10.5281/zenodo.15414690)
 
-## Overview
+SequenceAligner is a high-performance C++ tool for biological sequence alignment. It combines **classical dynamic
+programming** with **modern indexing techniques (FM-index)** and **parallel computation (MPI + OpenMP)**.
 
-SequenceAligner is a lightweight C++ tool designed for the comparative alignment of biological sequences. It supports three classic algorithms:
+It supports:
 
-* **Longest Common Subsequence (LCS)**: Identifies the longest sequence of characters that appear left-to-right (not necessarily contiguously) in both sequences.
-* **Global Alignment (Needleman-Wunsch)**: Finds the best full-length alignment between two sequences using dynamic programming.
-* **Local Alignment (Smith-Waterman)**: Identifies the highest scoring local subsequence alignment useful for identifying conserved motifs.
+* Longest Common Subsequence (LCS)
+* Global alignment (Needleman–Wunsch with affine gaps)
+* Local alignment (Smith–Waterman with affine gaps)
+* Seed-and-extend alignment using FM-index
 
-This tool is optimized for command-line use with FASTA inputs and outputs colorful visual feedback.
+The tool is optimized for **large-scale sequence comparison**, not just textbook examples.
 
-## Command-Line Usage
+---
 
-### Usage
+## What makes this different
 
-```bash
-./aligner --query <query.fasta> --target <target.fasta> --choice <1|2|3|4> [--mode dna|protein] [--outdir <directory>] [--verbose]
-```
+This is not a naive DP implementation.
 
-### Where:
+From the code:
 
-* `--query` specifies the first input FASTA file.
-* `--target` specifies the second input FASTA file.
-* `--choice` selects the alignment method:
+* FM-index enables fast substring search and seed generation
+* Suffix arrays are constructed in (O(n \log n))
+* Alignment uses affine gap penalties (GAP_OPEN, GAP_EXTEND)
+* SIMD (`immintrin.h`) and MPI support large-scale execution
+* Optional binary output for DP matrices
 
-  * `1` = global
-  * `2` = local
-  * `3` = LCS
-  * `4` = all methods
-* `--mode` (optional) sets scoring mode: `dna` (default) or `protein`.
-* `--outdir` (optional) sets the output directory (default is current directory).
-* `--verbose` (optional) enables progress and detailed output.
+---
+
+## Workflow
+
+1. Parse FASTA input
+2. Build FM-index on target
+3. Generate k-mer seeds
+4. Chain seeds into candidate regions
+5. Run DP alignment (global/local)
+6. Output formatted alignment + optional matrices
 
 ---
 

@@ -1,3 +1,5 @@
+!!! note "Note"
+Only the first FASTA entry is processed per file (by design).
 
 ## Input Format
 
@@ -7,7 +9,7 @@
 
 Example:
 
-For DNA sequences, use the following format: 
+For DNA sequences, use the following format:
 
 ```fasta
 >sequence1
@@ -29,9 +31,9 @@ MKTAAYIAKQRQISFVKSHFSRQDILDL
 
 ## Test Files
 
-Located in the `files/` directory: 
+Located in the `files/` directory:
 
-* `dna1.fasta`: Contains DNA sequences for testing. 
+* `dna1.fasta`: Contains DNA sequences for testing.
 * `protein1.fasta`: Contains protein sequences for testing.
 * `dna2.fasta`: Contains DNA sequences for testing.
 * `protein2.fasta`: Contains protein sequences for testing.

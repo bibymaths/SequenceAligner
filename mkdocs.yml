@@ -1,35 +1,75 @@
 site_name: SequenceAligner
-site_description: 'Documentation for a simple alignment tool for DNA sequences.'
-site_author: 'Abhinav Mishra'
+site_description: "Documentation for a simple alignment tool for DNA sequences."
+site_author: "Abhinav Mishra"
 site_url: https://bibymaths.github.io/SequenceAligner
 use_directory_urls: false
 repo_url: https://github.com/bibymaths/SequenceAligner
+repo_name: bibymaths/SequenceAligner
 
 theme:
-  name: readthedocs
+  name: material
   language: en
+  font:
+    text: Ubuntu           # The font for standard paragraph text
+    code: Fira Code        # The font for code blocks
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo # Change this to your brand color!
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - content.code.copy
+    - toc.integrate
 
 nav:
   - Home: index.md
-  - API Reference: https://bibymaths.github.io/SequenceAligner/api/index.html
-  - Theoretical Background: processes.md
+  - Getting Started: getting-started.md
+  - Input: input.md
+  - Algorithms:
+      - Overview: processes.md
+      - FM-Index & Seeding: fmindex.md
+      - Alignment Engine: alignment.md
   - Output: outputs.md
+  - CLI Reference: cli.md
+  - Performance & Parallelism: performance.md
+  - Benchmarking: benchmarks.md
   - About: about.md
+  - C++ API: https://bibymaths.github.io/SequenceAligner/api/index.html
 
 markdown_extensions:
   - pymdownx.arithmatex:
-      inline_syntax: ['$', '$']
-      block_syntax: ['$$', '$$']
+      generic: true
   - toc:
       permalink: true
+      toc_depth: 2
   - admonition
-  - codehilite
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.superfences
 
 extra_javascript:
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
   - search

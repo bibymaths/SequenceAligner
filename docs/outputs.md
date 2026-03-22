@@ -1,5 +1,3 @@
-
-
 ## Output Format
 
 The output consists of two aligned sequences printed line-by-line:
@@ -11,6 +9,22 @@ The output consists of two aligned sequences printed line-by-line:
 Each output block includes the base range for easier visual indexing.
 
 ---
+
+## Additional Outputs (From Code)
+
+Beyond alignment:
+
+- DP matrices (text or binary)
+- Traceback matrices
+- LCS sequence output
+- Indexed position ranges
+
+Binary formats:
+
+- Efficient storage for large matrices
+- Row-major layout with metadata header
+
+--- 
 
 ## Future Improvements
 

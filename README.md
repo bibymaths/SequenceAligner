@@ -1,8 +1,7 @@
-# SequenceAligner
+<img src="docs/assets/logo.png" alt="SequenceAligner" width="300">
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg) ![CMake](https://img.shields.io/badge/CMake-≥3.10-blue.svg)
-[![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html)
-
+[![Doxygen](https://img.shields.io/badge/docs-Doxygen-blue)](https://bibymaths.github.io/SequenceAligner/api/index.html) 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15414690.svg)](https://doi.org/10.5281/zenodo.15414690)
 
 A simple and efficient C++ implementation of three classic sequence alignment algorithms:
@@ -19,7 +18,7 @@ Please refer to [API Documentation](https://bibymaths.github.io/SequenceAligner/
 
 ## Getting Started
 
-### Installing OpenMPI for v2 and v3
+### Installing [OpenMPI](https://www.open-mpi.org/software/ompi/v5.0/) for v2 and v3
 
 #### Fedora
 
@@ -74,6 +73,168 @@ brew install llvm
 
 For official documentation, see:
 [OpenMPI Quickstart Guide](https://docs.open-mpi.org/en/v5.0.x/installing-open-mpi/quickstart.html)
+
+---
+
+# 🛠️ One-Time Library & Environment Setup
+
+Follow these steps to ensure all dependencies are installed and the system is configured to handle the
+AddressSanitizer (ASan) and `libdivsufsort` requirements.
+
+---
+
+## 1. Install Libraries via Micromamba
+
+We use Micromamba to manage the `sdsl-lite` and `libdivsufsort` dependencies. This avoids manual compilation errors with
+GCC 15.
+
+```bash
+# 1. Install the SDSL and DivSufSort libraries
+mamba install -c conda-forge sdsl-lite libdivsufsort
+
+# 2. Identify your environment path for CLion
+echo $CONDA_PREFIX
+````
+
+**Note:**
+The path returned (usually `/home/USER/micromamba`) is what you will use for the `CMAKE_PREFIX_PATH`.
+
+---
+
+## 2. Configure CLion Settings
+
+To make the libraries visible to your project, update the CMake settings in the CLion GUI:
+
+* Open **Settings (Ctrl+Alt+S)**
+* Navigate to:
+  `Build, Execution, Deployment > CMake`
+
+In **CMake options**, paste:
+
+```plaintext
+-DCMAKE_PREFIX_PATH=/home/YOUR_USER/micromamba
+```
+
+Click **Apply**, then click the **Reload CMake Project** icon in the CMake tab.
+
+---
+
+## 3. Fix the libasan Version Bridge
+
+Fedora 41+ uses a newer version of AddressSanitizer. Since the project links against version 8, you must create a
+symbolic link (bridge):
+
+```bash
+# Find your actual system ASan version and link it to version 8
+ACTUAL_ASAN=$(ls /usr/lib64/libasan.so.[1-9]* | head -n 1)
+sudo ln -sf $ACTUAL_ASAN /usr/lib64/libasan.so.8.0.0
+```
+
+---
+
+## 4. Mandatory Run Settings (Signal 4 Fix)
+
+To prevent the **Illegal Instruction** crash caused by conflicts between OpenMPI and AddressSanitizer, add the following
+environment variables to every Run Configuration (`aligner` and `fmindex`):
+
+* Go to:
+  `Run > Edit Configurations > Environment Variables`
+
+Paste:
+
+```plaintext
+OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home/YOUR_USER/micromamba/lib
+```
+
+---
+
+# 🏁 Setup Verification Checklist
+
+* **[SDSL](https://anaconda.org/channels/conda-forge/packages/sdsl-lite/overview) Check:**
+
+  ```bash
+  ls /home/YOUR_USER/micromamba/lib/libsdsl.a
+  ```
+
+* **[DivSufSort](https://github.com/y-256/libdivsufsort) Check:**
+
+  ```bash
+  ls /home/YOUR_USER/micromamba/lib/libdivsufsort.a
+  ```
+
+* **[ASan](https://gnu.googlesource.com/gcc/+/362cbc2d5f18c9f00dc3b945fb01c43bb0d36aae/libasan) Check:**
+
+  ```bash
+  ls -l /usr/lib64/libasan.so.8.0.0
+  ```
+
+  Should point to your actual system library.
+
+* **MPI Check:**
+  Ensure `OMPI_MCA_patcher=^overwrite` is present in your CLion environment variables.
+
+---
+
+## 🛠️ CLion Configuration Guide
+
+This project consists of two tools: `fmindex` (for pre-processing) and `aligner` (for sequence matching). Both require
+specific Environment Variables to handle the **OpenMPI + AddressSanitizer** memory conflict.
+
+### 1. Global Environment Setup
+
+For **ALL** run configurations below, copy and paste this single string into the **Environment variables** field in
+CLion:
+
+**Copy this:**
+`OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home/abhinavmishra/micromamba/lib`
+
+---
+
+### 2. Phase 1: Generating FM-Indexes
+
+Before aligning, you must generate `.fmidx` files from your FASTA data. Create two **CMake Application** configurations
+in CLion:
+
+#### **Config A: Index DNA 1**
+
+* **Target:** `fmindex`
+* **Program arguments:** `files/dna1.fasta -s $`
+* **Purpose:** Generates an index for the query sequence.
+
+#### **Config B: Index DNA 2**
+
+* **Target:** `fmindex`
+* **Program arguments:** `files/dna2.fasta -s $`
+* **Purpose:** Generates an index for the target sequence.
+
+---
+
+### 3. Phase 2: Running the Aligner
+
+Once the `.fmidx` files are generated in your project root, switch to the `aligner` configuration:
+
+* **Target:** `aligner`
+* **Program arguments (DNA Test):**
+  `--query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose`
+* **Working Directory:** Must be set to the project root (e.g., `/home/abhinavmishra/git/SequenceAligner`) so the app
+  can find the `/files` folder.
+
+---
+
+### 📝 Summary for Quick Setup
+
+| Configuration Name   | Target    | Program Arguments                                                                    |
+|:---------------------|:----------|:-------------------------------------------------------------------------------------|
+| **Generate Index 1** | `fmindex` | `files/dna1.fasta -s $`                                                              |
+| **Generate Index 2** | `fmindex` | `files/dna2.fasta -s $`                                                              |
+| **Run DNA Aligner**  | `aligner` | `--query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose` |
+
+---
+
+### ⚠️ Common Error: Signal 4 (Illegal Instruction)
+
+If the program crashes immediately upon launch, verify that `OMPI_MCA_patcher=^overwrite` is present in your *
+*Environment variables**. This prevents OpenMPI from corrupting memory regions monitored by the AddressSanitizer.
 
 ---
 
@@ -168,170 +329,7 @@ To run on local machine, use the following command:
   [--verbose]
 ```
 
-# 🛠️ One-Time Library & Environment Setup
-
-Follow these steps to ensure all dependencies are installed and the system is configured to handle the
-AddressSanitizer (ASan) and `libdivsufsort` requirements.
-
 ---
-
-## 1. Install Libraries via Micromamba
-
-We use Micromamba to manage the `sdsl-lite` and `libdivsufsort` dependencies. This avoids manual compilation errors with
-GCC 15.
-
-```bash
-# 1. Install the SDSL and DivSufSort libraries
-mamba install -c conda-forge sdsl-lite libdivsufsort
-
-# 2. Identify your environment path for CLion
-echo $CONDA_PREFIX
-````
-
-**Note:**
-The path returned (usually `/home/USER/micromamba`) is what you will use for the `CMAKE_PREFIX_PATH`.
-
----
-
-## 2. Configure CLion Settings
-
-To make the libraries visible to your project, update the CMake settings in the CLion GUI:
-
-* Open **Settings (Ctrl+Alt+S)**
-* Navigate to:
-  `Build, Execution, Deployment > CMake`
-
-In **CMake options**, paste:
-
-```plaintext
--DCMAKE_PREFIX_PATH=/home/YOUR_USER/micromamba
-```
-
-Click **Apply**, then click the **Reload CMake Project** icon in the CMake tab.
-
----
-
-## 3. Fix the libasan Version Bridge
-
-Fedora 41+ uses a newer version of AddressSanitizer. Since the project links against version 8, you must create a
-symbolic link (bridge):
-
-```bash
-# Find your actual system ASan version and link it to version 8
-ACTUAL_ASAN=$(ls /usr/lib64/libasan.so.[1-9]* | head -n 1)
-sudo ln -sf $ACTUAL_ASAN /usr/lib64/libasan.so.8.0.0
-```
-
----
-
-## 4. Mandatory Run Settings (Signal 4 Fix)
-
-To prevent the **Illegal Instruction** crash caused by conflicts between OpenMPI and AddressSanitizer, add the following
-environment variables to every Run Configuration (`aligner` and `fmindex`):
-
-* Go to:
-  `Run > Edit Configurations > Environment Variables`
-
-Paste:
-
-```plaintext
-OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home/YOUR_USER/micromamba/lib
-```
-
----
-
-# 🏁 Setup Verification Checklist
-
-* **SDSL Check:**
-
-  ```bash
-  ls /home/YOUR_USER/micromamba/lib/libsdsl.a
-  ```
-
-* **DivSufSort Check:**
-
-  ```bash
-  ls /home/YOUR_USER/micromamba/lib/libdivsufsort.a
-  ```
-
-* **ASan Check:**
-
-  ```bash
-  ls -l /usr/lib64/libasan.so.8.0.0
-  ```
-
-  Should point to your actual system library.
-
-* **MPI Check:**
-  Ensure `OMPI_MCA_patcher=^overwrite` is present in your CLion environment variables.
-
----
-
-## 🛠️ CLion Configuration Guide
-
-This project consists of two tools: `fmindex` (for pre-processing) and `aligner` (for sequence matching). Both require
-specific Environment Variables to handle the **OpenMPI + AddressSanitizer** memory conflict.
-
-### 1. Global Environment Setup
-
-For **ALL** run configurations below, copy and paste this single string into the **Environment variables** field in
-CLion:
-
-**Copy this:**
-`OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home/abhinavmishra/micromamba/lib`
-
----
-
-### 2. Phase 1: Generating FM-Indexes
-
-Before aligning, you must generate `.fmidx` files from your FASTA data. Create two **CMake Application** configurations
-in CLion:
-
-#### **Config A: Index DNA 1**
-
-* **Target:** `fmindex`
-* **Program arguments:** `files/dna1.fasta -s $`
-* **Purpose:** Generates an index for the query sequence.
-
-#### **Config B: Index DNA 2**
-
-* **Target:** `fmindex`
-* **Program arguments:** `files/dna2.fasta -s $`
-* **Purpose:** Generates an index for the target sequence.
-
----
-
-### 3. Phase 2: Running the Aligner
-
-Once the `.fmidx` files are generated in your project root, switch to the `aligner` configuration:
-
-* **Target:** `aligner`
-* **Program arguments (DNA Test):**
-  `--query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose`
-* **Working Directory:** Must be set to the project root (e.g., `/home/abhinavmishra/git/SequenceAligner`) so the app
-  can find the `/files` folder.
-
----
-
-### 📝 Summary for Quick Setup
-
-| Configuration Name   | Target    | Program Arguments                                                                    |
-|:---------------------|:----------|:-------------------------------------------------------------------------------------|
-| **Generate Index 1** | `fmindex` | `files/dna1.fasta -s $`                                                              |
-| **Generate Index 2** | `fmindex` | `files/dna2.fasta -s $`                                                              |
-| **Run DNA Aligner**  | `aligner` | `--query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose` |
-
----
-
-### ⚠️ Common Error: Signal 4 (Illegal Instruction)
-
-If the program crashes immediately upon launch, verify that `OMPI_MCA_patcher=^overwrite` is present in your *
-*Environment variables**. This prevents OpenMPI from corrupting memory regions monitored by the AddressSanitizer.
-
----
-
-**Would you like me to add a section explaining how to verify if the `.fmidx` files were created correctly using a hex
-editor or a simple `ls -lh` command?**
 
 ### **Explanation of Options**
 

@@ -1,6 +1,7 @@
 import numpy as np
 
 def downsample(mat, target_rows, target_cols):
+    """Downsamples matrix to target dimensions via strided averaging and truncation"""
     rstep = max(1, mat.shape[0] // target_rows)
     cstep = max(1, mat.shape[1] // target_cols)
     trimmed = mat[:(mat.shape[0]//rstep)*rstep, :(mat.shape[1]//cstep)*cstep]
