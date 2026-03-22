@@ -31,7 +31,7 @@ set(SDSL_LIBRARY_DIR "/home/abhinavmishra/mambaforge/lib")
 # Create executable (assuming your source file is src/fm.cpp for the aligner)
 # If your main source file is still src/test.cpp, adjust accordingly.
 # Let's assume you want to build an executable named 'aligner' from 'src/fm.cpp'
-add_executable(aligner src/test.cpp) # Changed 'aligner' to 'aligner' and 'src/test.cpp' to 'src/fm.cpp'
+add_executable(aligner src/fm.cpp) # Changed 'aligner' to 'aligner' and 'src/test.cpp' to 'src/fm.cpp'
 
 # Include directories
 target_include_directories(aligner PRIVATE

@@ -706,22 +706,74 @@ std::vector<Seed> generate_raw_seeds(const std::string& query_seq, const FMIndex
     return current_seeds;
 }
 
-ChainedSeed find_best_seed_chain(std::vector<Seed>& seeds_vec, int min_diag_gap_val = 0, int max_diag_gap_val = 50000, int max_offset_dev_val = 50) {
-    if (seeds_vec.empty()) { return {}; }
+ChainedSeed find_best_seed_chain(
+    std::vector<Seed> &seeds_vec,
+    int min_diag_gap_val = 0,
+    int max_diag_gap_val = 50000,
+    int max_offset_dev_val = 50
+) {
+    if (seeds_vec.empty()) return {};
+
+    // 1) sort by query_pos, then target_pos
     std::sort(seeds_vec.begin(), seeds_vec.end());
-    int n_s_val = seeds_vec.size();
-    std::vector<double> dp_scores(n_s_val); std::vector<int> prev_indices(n_s_val, -1); double max_chain_score = 0; int best_chain_end_idx = -1;
-    for (int i_s = 0; i_s < n_s_val; ++i_s) { dp_scores[i_s] = seeds_vec[i_s].len;
-        for (int j_s = 0; j_s < i_s; ++j_s) {
-            if (seeds_vec[j_s].query_end() + min_diag_gap_val < seeds_vec[i_s].query_pos && seeds_vec[j_s].target_end() + min_diag_gap_val < seeds_vec[i_s].target_pos) {
-                if (std::abs(((long long)seeds_vec[i_s].query_pos - seeds_vec[i_s].target_pos) - ((long long)seeds_vec[j_s].query_pos - seeds_vec[j_s].target_pos)) > max_offset_dev_val) continue;
-                if ((seeds_vec[i_s].query_pos - seeds_vec[j_s].query_end() > max_diag_gap_val) || (seeds_vec[i_s].target_pos - seeds_vec[j_s].target_end() > max_diag_gap_val)) continue;
-                if (dp_scores[j_s] + seeds_vec[i_s].len > dp_scores[i_s]) { dp_scores[i_s] = dp_scores[j_s] + seeds_vec[i_s].len; prev_indices[i_s] = j_s; }
+
+    int n = seeds_vec.size();
+    std::vector<double> dp(n, 0.0);
+    std::vector<int>    prev(n, -1);
+
+    double best_score = 0.0;
+    int    best_idx   = -1;
+
+    for (int i = 0; i < n; ++i) {
+        // start chain with just this seed’s own score (len × match_score=1)
+        double seed_score = static_cast<double>(seeds_vec[i].len);
+        dp[i] = seed_score;
+
+        // try extending every earlier seed j → i
+        for (int j = i - 1; j >= 0; --j) {
+            // no‐overlap
+            if (seeds_vec[j].query_end()  + min_diag_gap_val >= seeds_vec[i].query_pos)  continue;
+            if (seeds_vec[j].target_end() + min_diag_gap_val >= seeds_vec[i].target_pos) continue;
+
+            // compute gaps
+            int dq = seeds_vec[i].query_pos  - seeds_vec[j].query_end()  - 1;
+            int dt = seeds_vec[i].target_pos - seeds_vec[j].target_end() - 1;
+            if (dq < 0 || dt < 0) continue;
+            if (dq > max_diag_gap_val || dt > max_diag_gap_val) continue;
+
+            // diagonal consistency
+            int diag_j = seeds_vec[j].query_pos  - seeds_vec[j].target_pos;
+            int diag_i = seeds_vec[i].query_pos  - seeds_vec[i].target_pos;
+            if (std::abs(diag_i - diag_j) > max_offset_dev_val) continue;
+
+            // affine‐gap cost on each side
+            double cost_q = dq > 0 ? (GAP_OPEN + (dq - 1) * GAP_EXTEND) : 0.0;
+            double cost_t = dt > 0 ? (GAP_OPEN + (dt - 1) * GAP_EXTEND) : 0.0;
+            double gap_cost = cost_q + cost_t;
+
+            // DP recurrence: extend j→i
+            double cand = dp[j] + seed_score - gap_cost;
+            if (cand > dp[i]) {
+                dp[i]   = cand;
+                prev[i] = j;
             }
-        } if (dp_scores[i_s] > max_chain_score) { max_chain_score = dp_scores[i_s]; best_chain_end_idx = i_s; }
-    } ChainedSeed result_chain; result_chain.chain_score = 0;
-    if (best_chain_end_idx != -1) { result_chain.chain_score = max_chain_score; int current_s_idx = best_chain_end_idx; while (current_s_idx != -1) { result_chain.seeds.push_back(seeds_vec[current_s_idx]); current_s_idx = prev_indices[current_s_idx]; } std::reverse(result_chain.seeds.begin(), result_chain.seeds.end()); }
-    return result_chain;
+        }
+
+        // track global best
+        if (dp[i] > best_score) {
+            best_score = dp[i];
+            best_idx   = i;
+        }
+    }
+
+    // reconstruct chain
+    ChainedSeed chain;
+    chain.chain_score = best_score;
+    for (int cur = best_idx; cur != -1; cur = prev[cur]) {
+        chain.seeds.push_back(seeds_vec[cur]);
+    }
+    std::reverse(chain.seeds.begin(), chain.seeds.end());
+    return chain;
 }
 
 // -------- Segment/Window Alignment Helpers & Structs (Full Code) --------
