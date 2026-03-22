@@ -22,10 +22,6 @@ endif()
 # Find OpenMP
 find_package(OpenMP REQUIRED)
 
-# --- SDSL-lite Configuration ---
-set(SDSL_INCLUDE_DIR "/home/abhinavmishra/mambaforge/include")
-set(SDSL_LIBRARY_DIR "/home/abhinavmishra/mambaforge/lib")
-
 # Optional SIMD acceleration if supported
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
