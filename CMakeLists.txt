@@ -31,7 +31,7 @@ set(SDSL_LIBRARY_DIR "/home/abhinavmishra/mambaforge/lib")
 # Create executable (assuming your source file is src/fm.cpp for the aligner)
 # If your main source file is still src/test.cpp, adjust accordingly.
 # Let's assume you want to build an executable named 'aligner' from 'src/fm.cpp'
-add_executable(aligner src/fm.cpp) # Changed 'aligner' to 'aligner' and 'src/test.cpp' to 'src/fm.cpp'
+add_executable(aligner src/main_fmindex.cpp) # Changed 'aligner' to 'aligner' and 'src/test.cpp' to 'src/fm.cpp'
 
 # Include directories
 target_include_directories(aligner PRIVATE
@@ -85,4 +85,47 @@ endif()
 # Place the built executable in the project root
 set_target_properties(aligner PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# --- FM-Index Generator Target ---
+# Create the separate executable for indexing
+add_executable(fmindex src/fmindex.cpp)
+
+# Reuse the same include and link directories
+target_include_directories(fmindex PRIVATE
+        ${MPI_CXX_INCLUDE_DIRS}
+        ${SDSL_INCLUDE_DIR}
+)
+
+target_link_directories(fmindex PRIVATE
+        ${SDSL_LIBRARY_DIR}
+)
+
+# Link against the same libraries as the aligner
+target_link_libraries(fmindex PRIVATE
+        ${MPI_CXX_LIBRARIES}
+        OpenMP::OpenMP_CXX
+        sdsl
+        divsufsort
+        divsufsort64
+        pthread
+)
+
+# Apply Debug/Sanitizer flags to fmindex
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  message(STATUS "Enabling AddressSanitizer for fmindex")
+  target_compile_options(fmindex PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+  target_link_options(fmindex PRIVATE -fsanitize=address)
+endif()
+
+# Apply SIMD/O3 optimization flags to fmindex
+if(COMPILER_SUPPORTS_AVX2)
+  target_compile_options(fmindex PRIVATE -mavx2 -march=native -funroll-loops -O3)
+else()
+  target_compile_options(fmindex PRIVATE -O3)
+endif()
+
+# Place the built fmindex executable in the project root
+set_target_properties(fmindex PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
