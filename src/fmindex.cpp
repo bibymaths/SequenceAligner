@@ -6,6 +6,7 @@
 #include <numeric> // For std::iota
 #include <fstream> // For file operations
 #include <stdexcept> // For std::runtime_error
+#include <filesystem>
 
 // -------- Suffix Array Construction --------
 std::vector<int> suffix_array(const std::string& s) {
@@ -373,7 +374,15 @@ int main(int argc, char* argv[]) {
 
 
         FMIndex idx(current_sequence_lines, sentinel_char);
-        std::string fname = sanitized_header + ".fmidx";
+
+        // Generate filename based on the input file, not the header
+        std::string fname = "stdin_sequence.fmidx";
+        if (fasta_filepath != "-") {
+            // This turns "files/dna2.fasta" into "dna2"
+            std::string base_name = std::filesystem::path(fasta_filepath).stem().string();
+            fname = base_name + ".fmidx"; // Results in "dna2.fmidx"
+        }
+
         std::ofstream outfile(fname, std::ios::binary);
          if (!outfile) {
             std::cerr << "Error: Could not open " << fname << " for writing." << std::endl;

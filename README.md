@@ -168,59 +168,170 @@ To run on local machine, use the following command:
   [--verbose]
 ```
 
----
+# 🛠️ One-Time Library & Environment Setup
 
-## 🚀 Running with CLion GUI
-
-To run the aligner within CLion, you must configure the **Run/Debug Configurations** to handle the MPI environment and
-the library paths.
-
-### 1. Setup Environment & Pathing
-
-Open **Run > Edit Configurations** and select the `aligner` target. Click the folder icon next to **Environment
-variables** and add the following:
-
-| Name               | Value                                | Purpose                            |
-|:-------------------|:-------------------------------------|:-----------------------------------|
-| `OMPI_MCA_patcher` | `^overwrite`                         | Prevents MPI/ASan memory conflicts |
-| `ASAN_OPTIONS`     | `protect_shadow_gap=0`               | Allows MPI to use memory gaps      |
-| `LIBRARY_PATH`     | `/home/abhinavmishra/micromamba/lib` | Links the SDSL-lite static library |
-
-> **Note:** Ensure your **Working Directory** is set to the project root so the program can find the `/files` folder.
+Follow these steps to ensure all dependencies are installed and the system is configured to handle the
+AddressSanitizer (ASan) and `libdivsufsort` requirements.
 
 ---
 
-### 2. Test Case 1: DNA Global Alignment
+## 1. Install Libraries via Micromamba
 
-Use this test case to verify the FM-Index and basic DNA sequence matching.
+We use Micromamba to manage the `sdsl-lite` and `libdivsufsort` dependencies. This avoids manual compilation errors with
+GCC 15.
 
-* **Program Arguments:**
-    ```text
-    --query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose
-    ```
-* **Expected Output:** The console should show the MPI rank initialization, the building of the FM-Index for
-  `dna2.fasta`, and the resulting alignment score.
+```bash
+# 1. Install the SDSL and DivSufSort libraries
+mamba install -c conda-forge sdsl-lite libdivsufsort
 
----
+# 2. Identify your environment path for CLion
+echo $CONDA_PREFIX
+````
 
-### 3. Test Case 2: Protein Alignment
-
-Use this test case to verify protein scoring matrices and sequence processing.
-
-* **Program Arguments:**
-    ```text
-    --query files/prot1.fasta --target files/prot3.fasta --choice 1 --mode protein --verbose
-    ```
-* **Expected Output:** High-level logs showing the protein alphabet processing and the alignment of the amino acid
-  sequences.
+**Note:**
+The path returned (usually `/home/USER/micromamba`) is what you will use for the `CMAKE_PREFIX_PATH`.
 
 ---
 
-### 🛠 Troubleshooting "Illegal Instruction"
+## 2. Configure CLion Settings
 
-If the program crashes with `Caught signal 4 (Illegal instruction)`, ensure the `OMPI_MCA_patcher` variable is set
-correctly. This error occurs because the **AddressSanitizer** and **OpenMPI** are attempting to manage the same memory
-regions simultaneously.
+To make the libraries visible to your project, update the CMake settings in the CLion GUI:
+
+* Open **Settings (Ctrl+Alt+S)**
+* Navigate to:
+  `Build, Execution, Deployment > CMake`
+
+In **CMake options**, paste:
+
+```plaintext
+-DCMAKE_PREFIX_PATH=/home/YOUR_USER/micromamba
+```
+
+Click **Apply**, then click the **Reload CMake Project** icon in the CMake tab.
+
+---
+
+## 3. Fix the libasan Version Bridge
+
+Fedora 41+ uses a newer version of AddressSanitizer. Since the project links against version 8, you must create a
+symbolic link (bridge):
+
+```bash
+# Find your actual system ASan version and link it to version 8
+ACTUAL_ASAN=$(ls /usr/lib64/libasan.so.[1-9]* | head -n 1)
+sudo ln -sf $ACTUAL_ASAN /usr/lib64/libasan.so.8.0.0
+```
+
+---
+
+## 4. Mandatory Run Settings (Signal 4 Fix)
+
+To prevent the **Illegal Instruction** crash caused by conflicts between OpenMPI and AddressSanitizer, add the following
+environment variables to every Run Configuration (`aligner` and `fmindex`):
+
+* Go to:
+  `Run > Edit Configurations > Environment Variables`
+
+Paste:
+
+```plaintext
+OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home/YOUR_USER/micromamba/lib
+```
+
+---
+
+# 🏁 Setup Verification Checklist
+
+* **SDSL Check:**
+
+  ```bash
+  ls /home/YOUR_USER/micromamba/lib/libsdsl.a
+  ```
+
+* **DivSufSort Check:**
+
+  ```bash
+  ls /home/YOUR_USER/micromamba/lib/libdivsufsort.a
+  ```
+
+* **ASan Check:**
+
+  ```bash
+  ls -l /usr/lib64/libasan.so.8.0.0
+  ```
+
+  Should point to your actual system library.
+
+* **MPI Check:**
+  Ensure `OMPI_MCA_patcher=^overwrite` is present in your CLion environment variables.
+
+---
+
+## 🛠️ CLion Configuration Guide
+
+This project consists of two tools: `fmindex` (for pre-processing) and `aligner` (for sequence matching). Both require
+specific Environment Variables to handle the **OpenMPI + AddressSanitizer** memory conflict.
+
+### 1. Global Environment Setup
+
+For **ALL** run configurations below, copy and paste this single string into the **Environment variables** field in
+CLion:
+
+**Copy this:**
+`OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home/abhinavmishra/micromamba/lib`
+
+---
+
+### 2. Phase 1: Generating FM-Indexes
+
+Before aligning, you must generate `.fmidx` files from your FASTA data. Create two **CMake Application** configurations
+in CLion:
+
+#### **Config A: Index DNA 1**
+
+* **Target:** `fmindex`
+* **Program arguments:** `files/dna1.fasta -s $`
+* **Purpose:** Generates an index for the query sequence.
+
+#### **Config B: Index DNA 2**
+
+* **Target:** `fmindex`
+* **Program arguments:** `files/dna2.fasta -s $`
+* **Purpose:** Generates an index for the target sequence.
+
+---
+
+### 3. Phase 2: Running the Aligner
+
+Once the `.fmidx` files are generated in your project root, switch to the `aligner` configuration:
+
+* **Target:** `aligner`
+* **Program arguments (DNA Test):**
+  `--query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose`
+* **Working Directory:** Must be set to the project root (e.g., `/home/abhinavmishra/git/SequenceAligner`) so the app
+  can find the `/files` folder.
+
+---
+
+### 📝 Summary for Quick Setup
+
+| Configuration Name   | Target    | Program Arguments                                                                    |
+|:---------------------|:----------|:-------------------------------------------------------------------------------------|
+| **Generate Index 1** | `fmindex` | `files/dna1.fasta -s $`                                                              |
+| **Generate Index 2** | `fmindex` | `files/dna2.fasta -s $`                                                              |
+| **Run DNA Aligner**  | `aligner` | `--query files/dna1.fasta --target files/dna2.fasta --choice 1 --mode dna --verbose` |
+
+---
+
+### ⚠️ Common Error: Signal 4 (Illegal Instruction)
+
+If the program crashes immediately upon launch, verify that `OMPI_MCA_patcher=^overwrite` is present in your *
+*Environment variables**. This prevents OpenMPI from corrupting memory regions monitored by the AddressSanitizer.
+
+---
+
+**Would you like me to add a section explaining how to verify if the `.fmidx` files were created correctly using a hex
+editor or a simple `ls -lh` command?**
 
 ### **Explanation of Options**
 
