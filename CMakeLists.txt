@@ -66,9 +66,12 @@ target_compile_options(aligner PRIVATE
 # Enable AddressSanitizer in Debug builds
 # Note: This target_compile_options and target_link_options should apply to aligner
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  message(STATUS "Enabling AddressSanitizer for aligner")
-  target_compile_options(aligner PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
-  target_link_options(aligner PRIVATE -fsanitize=address)
+  message(STATUS "Disabling AddressSanitizer for aligner (for Valgrind compatibility)")
+  # target_compile_options(aligner PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+  # target_link_options(aligner PRIVATE -fsanitize=address)
+
+  # Keep debug symbols (-g) for Valgrind!
+  target_compile_options(aligner PRIVATE -g -fno-omit-frame-pointer)
 endif()
 
 
@@ -111,11 +114,12 @@ target_link_libraries(fmindex PRIVATE
         pthread
 )
 
-# Apply Debug/Sanitizer flags to fmindex
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  message(STATUS "Enabling AddressSanitizer for fmindex")
-  target_compile_options(fmindex PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
-  target_link_options(fmindex PRIVATE -fsanitize=address)
+  message(STATUS "Disabling AddressSanitizer for fmindex")
+  # target_compile_options(fmindex PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+  # target_link_options(fmindex PRIVATE -fsanitize=address)
+
+  target_compile_options(fmindex PRIVATE -g -fno-omit-frame-pointer)
 endif()
 
 # Apply SIMD/O3 optimization flags to fmindex
