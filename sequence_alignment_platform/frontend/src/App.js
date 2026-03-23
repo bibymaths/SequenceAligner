@@ -8,71 +8,115 @@ import AnalysisDashboard from './components/AnalysisDashboard';
 const queryClient = new QueryClient();
 
 function App() {
-    // 1. State to manage the app's current phase
     const [sessionId, setSessionId] = useState(null);
-    const [logs, setLogs] = useState([]);
-    const [isComplete, setIsComplete] = useState(false);
+    const [status, setStatus] = useState("idle"); // idle | running | completed | failed
 
-    // 2. The WebSocket Listener
     useEffect(() => {
-        // Don't connect if we don't have a session ID yet, or if we are already done
-        if (!sessionId || isComplete) return;
+        if (!sessionId || status !== "running") return;
 
         const ws = new WebSocket(`ws://127.0.0.1:8000/ws/logs/${sessionId}`);
 
         ws.onmessage = (event) => {
-            const message = event.data;
+            const message = event.data.toLowerCase();
 
-            // Append new logs to the console
-            setLogs((prevLogs) => [...prevLogs, message]);
+            if (message.includes("[error]")) {
+                setStatus("failed");
+                ws.close();
+                return;
+            }
 
-            // THE MAGIC TRIGGER: If the C++ backend says it's done, flip the switch!
-            if (message.includes("Analysis complete") || message.includes("completed successfully")) {
-                setIsComplete(true);
-                ws.close(); // Hang up the connection
+            if (
+                message.includes("analysis complete") ||
+                message.includes("alignment complete") ||
+                message.includes("pipeline finished successfully")
+            ) {
+                setStatus("completed");
+                ws.close();
             }
         };
 
-        // Cleanup function if the component unmounts
-        return () => {
-            if (ws.readyState === 1) ws.close();
+        ws.onerror = () => {
+            setStatus("failed");
         };
-    }, [sessionId, isComplete]);
+
+        return () => {
+            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                ws.close();
+            }
+        };
+    }, [sessionId, status]);
+
+    const resetRun = () => {
+        setSessionId(null);
+        setStatus("idle");
+    };
 
     return (
         <QueryClientProvider client={queryClient}>
             <div className="min-h-screen bg-gray-100 p-8">
-                <h1 className="text-3xl font-bold mb-6 text-gray-800">Sequence Alignment Platform</h1>
+                <h1 className="text-3xl font-bold mb-6 text-gray-800">
+                    Sequence Alignment Platform
+                </h1>
 
-                {/* PHASE 1: Upload (Only show if no session exists) */}
+                {/* Upload */}
                 {!sessionId && (
-                    <DropZone onSessionCreated={(id) => setSessionId(id)} />
+                    <DropZone
+                        onSessionCreated={(id) => {
+                            setSessionId(id);
+                            setStatus("running");
+                        }}
+                    />
                 )}
 
-                {/* PHASE 2: Running & Streaming Logs (Show if we have an ID but aren't done) */}
-                {sessionId && !isComplete && (
-                    <div className="bg-white p-6 rounded-lg shadow-md mt-4 border border-gray-200">
-                        <h2 className="text-xl font-semibold mb-4 text-blue-600">
-                            <span className="animate-pulse mr-2">⚙️</span>
-                            Running C++ Alignment...
-                        </h2>
-                        <div className="bg-gray-900 text-green-400 p-4 rounded h-64 overflow-y-auto font-mono text-sm whitespace-pre-wrap">
-                            {logs.map((log, index) => (
-                                <span key={index}>{log}</span>
-                            ))}
+                {/* Running State */}
+                {sessionId && status === "running" && (
+                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 mt-4">
+                        <div className="flex items-center gap-4">
+                            <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-800">
+                                    Running alignment & analysis
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    This may take a few seconds depending on sequence size.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* PHASE 3: Results Dashboard (Show ONLY when complete) */}
-                {isComplete && (
+                {/* Failed */}
+                {sessionId && status === "failed" && (
+                    <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm mt-6">
+                        <p className="font-bold">Pipeline failed</p>
+                        <p>Check backend logs. This UI intentionally hides raw terminal output.</p>
+
+                        <button
+                            onClick={resetRun}
+                            className="mt-4 px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm"
+                        >
+                            New Run
+                        </button>
+                    </div>
+                )}
+
+                {/* Success */}
+                {sessionId && status === "completed" && (
                     <div className="space-y-8 mt-6">
-                        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-sm">
-                            <p className="font-bold">Success!</p>
-                            <p>Alignment and analysis are complete. Rendering results below.</p>
+                        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-sm flex justify-between items-center">
+                            <div>
+                                <p className="font-bold">Completed</p>
+                                <p>Alignment and analysis finished successfully.</p>
+                            </div>
+
+                            <button
+                                onClick={resetRun}
+                                className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-sm"
+                            >
+                                New Run
+                            </button>
                         </div>
 
-                        {/* Pass the sessionId as a prop so they know which data to fetch! */}
                         <AlignmentViewer sessionId={sessionId} />
                         <MatrixVisualizer sessionId={sessionId} />
                         <AnalysisDashboard sessionId={sessionId} />
