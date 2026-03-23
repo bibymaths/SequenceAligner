@@ -1,0 +1,1566 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for a simple alignment tool for DNA sequences.">
+      
+      
+        <meta name="author" content="Abhinav Mishra">
+      
+      
+        <link rel="canonical" href="https://bibymaths.github.io/SequenceAligner/processes.html">
+      
+      
+        <link rel="prev" href="input.html">
+      
+      
+        <link rel="next" href="fmindex.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Overview - SequenceAligner</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu:300,300i,400,400i,700,700i%7CFira+Code:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Ubuntu";--md-code-font:"Fira Code"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="stylesheets/extra.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mathematical-foundations-and-implementation-model" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="SequenceAligner" class="md-header__button md-logo" aria-label="SequenceAligner" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SequenceAligner
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Overview
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bibymaths/SequenceAligner" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bibymaths/SequenceAligner
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="getting-started.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="input.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Input
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="processes.html" class="md-tabs__link">
+          
+  
+  
+  Algorithms
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="outputs.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Output
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="cli.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  CLI Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="performance.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Performance & Parallelism
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="benchmarks.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Benchmarking
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="about.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://bibymaths.github.io/SequenceAligner/api/index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  C++ API
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="SequenceAligner" class="md-nav__button md-logo" aria-label="SequenceAligner" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SequenceAligner
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bibymaths/SequenceAligner" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bibymaths/SequenceAligner
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="input.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithms
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Algorithms
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="processes.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-sequences-notation-and-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Sequences, notation, and scoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-suffix-array-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Suffix array construction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-fm-index-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. FM-index construction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-seed-generation-from-query-k-mers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Seed generation from query k-mers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-seed-chaining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Seed chaining
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-affine-gap-global-alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Affine-gap global alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-affine-gap-local-alignment-in-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Affine-gap local alignment in windows
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-longest-common-subsequence-lcs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Longest common subsequence (LCS)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-anchored-decomposition-of-alignment-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Anchored decomposition of alignment problems
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-matrix-output-and-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Matrix output and serialization
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="fmindex.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FM-Index & Seeding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="alignment.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alignment Engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="performance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance & Parallelism
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="benchmarks.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="about.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://bibymaths.github.io/SequenceAligner/api/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="mathematical-foundations-and-implementation-model">Mathematical Foundations and Implementation Model<a class="headerlink" href="#mathematical-foundations-and-implementation-model" title="Permanent link">&para;</a></h1>
+<p>This page describes the actual mathematics implemented in <code>SequenceAligner</code>, based on the codebase rather than a generic
+alignment summary. The implementation combines classical dynamic programming with indexed seed discovery and chaining.
+The main algorithmic parts are:</p>
+<ol>
+<li>suffix array construction</li>
+<li>FM-index construction and backward search</li>
+<li>k-mer seed generation</li>
+<li>seed chaining with affine-style gap costs</li>
+<li>affine-gap global alignment</li>
+<li>affine-gap local alignment in candidate windows</li>
+<li>longest common subsequence (LCS)</li>
+</ol>
+<p>The code supports both DNA and protein scoring modes through EDNAFULL and BLOSUM62-style substitution tables,
+respectively.</p>
+<hr />
+<h2 id="1-sequences-notation-and-scoring">1. Sequences, notation, and scoring<a class="headerlink" href="#1-sequences-notation-and-scoring" title="Permanent link">&para;</a></h2>
+<p>Let</p>
+<ul>
+<li><span class="arithmatex">\(X = x_1x_2\cdots x_m\)</span> be the query sequence</li>
+<li><span class="arithmatex">\(Y = y_1y_2\cdots y_n\)</span> be the target sequence</li>
+</ul>
+<p>with lengths <span class="arithmatex">\(m = |X|\)</span> and <span class="arithmatex">\(n = |Y|\)</span>.</p>
+<p>The implementation defines a substitution score function</p>
+<div class="arithmatex">\[
+\sigma(a,b)
+\]</div>
+<p>which depends on the selected mode:</p>
+<ul>
+<li>DNA mode: EDNAFULL-derived scoring</li>
+<li>protein mode: BLOSUM62-derived scoring</li>
+</ul>
+<p>In the code, this is dispatched through:</p>
+<div class="arithmatex">\[
+\sigma(a,b)=
+\begin{cases}
+\sigma_{\mathrm{DNA}}(a,b), &amp; \text{DNA mode}\\[4pt]
+\sigma_{\mathrm{protein}}(a,b), &amp; \text{protein mode}
+\end{cases}
+\]</div>
+<p>Gap penalties are affine:</p>
+<ul>
+<li>gap open: <span class="arithmatex">\(g_o = \texttt{GAP\_OPEN} = -5\)</span></li>
+<li>gap extend: <span class="arithmatex">\(g_e = \texttt{GAP\_EXTEND} = -1\)</span></li>
+</ul>
+<p>so that a gap of length <span class="arithmatex">\(L \ge 1\)</span> has score</p>
+<div class="arithmatex">\[
+g(L) = g_o + (L-1)g_e.
+\]</div>
+<p>These constants are explicitly defined in the code.</p>
+<hr />
+<h2 id="2-suffix-array-construction">2. Suffix array construction<a class="headerlink" href="#2-suffix-array-construction" title="Permanent link">&para;</a></h2>
+<p>For a string <span class="arithmatex">\(T = t_0t_1\cdots t_{N-1}\)</span>, the suffix array is the permutation</p>
+<div class="arithmatex">\[
+\mathrm{SA}[0],\mathrm{SA}[1],\ldots,\mathrm{SA}[N-1]
+\]</div>
+<p>such that</p>
+<div class="arithmatex">\[
+T[\mathrm{SA}[0]:] &lt; T[\mathrm{SA}[1]:] &lt; \cdots &lt; T[\mathrm{SA}[N-1]:]
+\]</div>
+<p>in lexicographic order.</p>
+<p>The implementation uses a rank-doubling construction. Initially, each suffix starting at position <span class="arithmatex">\(i\)</span> is ranked by the
+character code of <span class="arithmatex">\(T_i\)</span>. At iteration <span class="arithmatex">\(k=1,2,4,\dots\)</span>, suffixes are sorted by the pair</p>
+<div class="arithmatex">\[
+\bigl(r_k(i),\, r_k(i+k)\bigr),
+\]</div>
+<p>where <span class="arithmatex">\(r_k(i)\)</span> is the current rank of the suffix beginning at <span class="arithmatex">\(i\)</span>. If <span class="arithmatex">\(i+k \ge N\)</span>, the second component is treated
+as <span class="arithmatex">\(-1\)</span>.</p>
+<p>After sorting, new ranks are assigned:</p>
+<div class="arithmatex">\[
+r_{2k}( \mathrm{SA}[0]) = 0,
+\]</div>
+<p>and for <span class="arithmatex">\(j \ge 1\)</span>,</p>
+<div class="arithmatex">\[
+r_{2k}(\mathrm{SA}[j]) =
+r_{2k}(\mathrm{SA}[j-1]) +
+\mathbf{1}\!\left[
+\bigl(r_k(\mathrm{SA}[j]), r_k(\mathrm{SA}[j]+k)\bigr)
+\neq
+\bigl(r_k(\mathrm{SA}[j-1]), r_k(\mathrm{SA}[j-1]+k)\bigr)
+\right].
+\]</div>
+<p>The process stops once all ranks are unique. This is the standard <span class="arithmatex">\(O(N\log N)\)</span> rank-doubling method implemented in the
+code.</p>
+<hr />
+<h2 id="3-fm-index-construction">3. FM-index construction<a class="headerlink" href="#3-fm-index-construction" title="Permanent link">&para;</a></h2>
+<p>To index the target sequence, the implementation builds an FM-index on</p>
+<div class="arithmatex">\[
+T = Y\$,
+\]</div>
+<p>where <span class="arithmatex">\(\$\)</span> is a sentinel smaller than all biological alphabet symbols.</p>
+<h3 id="31-burrows-wheeler-transform">3.1 Burrows-Wheeler transform<a class="headerlink" href="#31-burrows-wheeler-transform" title="Permanent link">&para;</a></h3>
+<p>Given the suffix array <span class="arithmatex">\(\mathrm{SA}\)</span>, the Burrows-Wheeler transform <span class="arithmatex">\(B\)</span> is</p>
+<div class="arithmatex">\[
+B[i] =
+\begin{cases}
+T[N-1], &amp; \mathrm{SA}[i]=0,\\[4pt]
+T[\mathrm{SA}[i]-1], &amp; \mathrm{SA}[i]&gt;0.
+\end{cases}
+\]</div>
+<h3 id="32-c-table">3.2 C-table<a class="headerlink" href="#32-c-table" title="Permanent link">&para;</a></h3>
+<p>For each character <span class="arithmatex">\(c\)</span>, the FM-index stores</p>
+<div class="arithmatex">\[
+C[c] = \#\{\,a \in T : a &lt; c\,\},
+\]</div>
+<p>the total number of symbols in <span class="arithmatex">\(T\)</span> that are lexicographically smaller than <span class="arithmatex">\(c\)</span>.</p>
+<h3 id="33-occ-table">3.3 Occ table<a class="headerlink" href="#33-occ-table" title="Permanent link">&para;</a></h3>
+<p>For each character <span class="arithmatex">\(c\)</span>, the occurrence table stores</p>
+<div class="arithmatex">\[
+\mathrm{Occ}(c,i)=\#\{\,k &lt; i : B[k]=c\,\},
+\]</div>
+<p>that is, the number of occurrences of <span class="arithmatex">\(c\)</span> in the prefix <span class="arithmatex">\(B[0:i-1]\)</span>.</p>
+<h3 id="34-backward-search">3.4 Backward search<a class="headerlink" href="#34-backward-search" title="Permanent link">&para;</a></h3>
+<p>For a pattern <span class="arithmatex">\(P = p_1p_2\cdots p_\ell\)</span>, matching intervals are computed right-to-left. Start with</p>
+<div class="arithmatex">\[
+[l,r) = [0,N).
+\]</div>
+<p>Then for <span class="arithmatex">\(i=\ell,\ell-1,\dots,1\)</span>,</p>
+<div class="arithmatex">\[
+l \leftarrow C[p_i] + \mathrm{Occ}(p_i,l),
+\qquad
+r \leftarrow C[p_i] + \mathrm{Occ}(p_i,r).
+\]</div>
+<p>If at any step <span class="arithmatex">\(l \ge r\)</span>, the pattern does not occur. Otherwise, after the last character, the suffix-array
+interval <span class="arithmatex">\([l,r)\)</span> identifies all matching locations of the pattern in the target sequence. The code then maps that
+interval back to text coordinates using <code>sa[i]</code>.</p>
+<hr />
+<h2 id="4-seed-generation-from-query-k-mers">4. Seed generation from query k-mers<a class="headerlink" href="#4-seed-generation-from-query-k-mers" title="Permanent link">&para;</a></h2>
+<p>The code generates exact-match seeds by sliding a k-mer window across the query. For a chosen seed length <span class="arithmatex">\(k\)</span>, define
+query k-mers</p>
+<div class="arithmatex">\[
+K_i = X[i:i+k-1], \qquad i=0,1,\dots,m-k.
+\]</div>
+<p>For each <span class="arithmatex">\(K_i\)</span>, FM-index backward search returns all matching target positions</p>
+<div class="arithmatex">\[
+\mathcal{P}_i = \{t_1,t_2,\dots\}.
+\]</div>
+<p>Each match yields a seed</p>
+<div class="arithmatex">\[
+s = (q,t,k),
+\]</div>
+<p>where</p>
+<ul>
+<li><span class="arithmatex">\(q\)</span> = query start position</li>
+<li><span class="arithmatex">\(t\)</span> = target start position</li>
+<li><span class="arithmatex">\(k\)</span> = seed length</li>
+</ul>
+<p>So the raw seed set is</p>
+<div class="arithmatex">\[
+\mathcal{S} = \{(q,t,k): X[q:q+k-1] = Y[t:t+k-1]\}.
+\]</div>
+<p>This is exactly what <code>generate_raw_seeds</code> constructs. </p>
+<hr />
+<h2 id="5-seed-chaining">5. Seed chaining<a class="headerlink" href="#5-seed-chaining" title="Permanent link">&para;</a></h2>
+<p>A seed <span class="arithmatex">\(s_i\)</span> has coordinates</p>
+<div class="arithmatex">\[
+s_i = (q_i,t_i,\ell_i),
+\]</div>
+<p>with query end and target end</p>
+<div class="arithmatex">\[
+q_i^{\mathrm{end}} = q_i + \ell_i - 1,
+\qquad
+t_i^{\mathrm{end}} = t_i + \ell_i - 1.
+\]</div>
+<p>The seeds are sorted by query position, then target position. The chaining step computes a best monotone chain under
+overlap, gap, and diagonal-consistency constraints.</p>
+<h3 id="51-feasibility-constraints">5.1 Feasibility constraints<a class="headerlink" href="#51-feasibility-constraints" title="Permanent link">&para;</a></h3>
+<p>A seed <span class="arithmatex">\(s_j\)</span> may precede <span class="arithmatex">\(s_i\)</span> only if:</p>
+<ol>
+<li>
+<p><strong>no overlap in query</strong>
+   [
+   q_j^{\mathrm{end}} + \delta_{\min} &lt; q_i
+   ]</p>
+</li>
+<li>
+<p><strong>no overlap in target</strong>
+   [
+   t_j^{\mathrm{end}} + \delta_{\min} &lt; t_i
+   ]</p>
+</li>
+<li>
+<p><strong>bounded inter-seed gaps</strong>
+   [
+   0 \le d_q \le \delta_{\max},
+   \qquad
+   0 \le d_t \le \delta_{\max}
+   ]
+   where
+   [
+   d_q = q_i - q_j^{\mathrm{end}} - 1,
+   \qquad
+   d_t = t_i - t_j^{\mathrm{end}} - 1
+   ]</p>
+</li>
+<li>
+<p><strong>diagonal consistency</strong>
+   [
+   \left| (q_i-t_i) - (q_j-t_j) \right| \le \Delta_{\max}.
+   ]</p>
+</li>
+</ol>
+<p>These correspond to <code>min_diag_gap_val</code>, <code>max_diag_gap_val</code>, and <code>max_offset_dev_val</code> in the code.</p>
+<h3 id="52-chain-score">5.2 Chain score<a class="headerlink" href="#52-chain-score" title="Permanent link">&para;</a></h3>
+<p>Each seed contributes its length:</p>
+<div class="arithmatex">\[
+w_i = \ell_i.
+\]</div>
+<p>The gap cost between two consecutive seeds is computed independently in query and target using the same affine penalty
+parameters:</p>
+<div class="arithmatex">\[
+\gamma_q(d_q) =
+\begin{cases}
+0, &amp; d_q=0\\
+g_o + (d_q-1)g_e, &amp; d_q&gt;0
+\end{cases}
+\]</div>
+<div class="arithmatex">\[
+\gamma_t(d_t) =
+\begin{cases}
+0, &amp; d_t=0\\
+g_o + (d_t-1)g_e, &amp; d_t&gt;0
+\end{cases}
+\]</div>
+<p>and the total inter-seed cost is</p>
+<div class="arithmatex">\[
+\Gamma(j,i)=\gamma_q(d_q)+\gamma_t(d_t).
+\]</div>
+<p>The DP recurrence implemented in <code>find_best_seed_chain</code> is</p>
+<div class="arithmatex">\[
+D[i] = w_i + \max\left(
+0,\;
+\max_{j&lt;i,\; s_j \prec s_i}
+\bigl(D[j] - \Gamma(j,i)\bigr)
+\right).
+\]</div>
+<p>Equivalently, in the code’s update form,</p>
+<div class="arithmatex">\[
+D[i] = \max\left(D[i],\; D[j] + w_i - \Gamma(j,i)\right).
+\]</div>
+<p>The best chain score is</p>
+<div class="arithmatex">\[
+\max_i D[i].
+\]</div>
+<p>Backtracking through the predecessor array reconstructs the ordered chain of anchors.
+{index=9}</p>
+<hr />
+<h2 id="6-affine-gap-global-alignment">6. Affine-gap global alignment<a class="headerlink" href="#6-affine-gap-global-alignment" title="Permanent link">&para;</a></h2>
+<p>Global alignment is implemented in <code>align_segment_globally</code> using three DP states.</p>
+<p>For prefixes <span class="arithmatex">\(X_{1:i}\)</span> and <span class="arithmatex">\(Y_{1:j}\)</span>, define:</p>
+<ul>
+<li><span class="arithmatex">\(S_{i,j}\)</span>: best score ending in a match/mismatch state</li>
+<li><span class="arithmatex">\(E_{i,j}\)</span>: best score ending with a gap in sequence 1 relative to sequence 2 in the code’s traceback convention</li>
+<li><span class="arithmatex">\(F_{i,j}\)</span>: best score ending with a gap in sequence 2 relative to sequence 1</li>
+</ul>
+<p>The code uses row-compressed score arrays and a full traceback matrix.</p>
+<h3 id="61-initialization">6.1 Initialization<a class="headerlink" href="#61-initialization" title="Permanent link">&para;</a></h3>
+<p>The affine boundary conditions are:</p>
+<div class="arithmatex">\[
+S_{0,0}=0,\qquad E_{0,0}=-\infty,\qquad F_{0,0}=-\infty.
+\]</div>
+<p>Along the first row:</p>
+<div class="arithmatex">\[
+E_{0,j}=
+\begin{cases}
+g_o, &amp; j=1,\\
+E_{0,j-1}+g_e, &amp; j&gt;1,
+\end{cases}
+\qquad
+S_{0,j}=E_{0,j},
+\qquad
+F_{0,j}=-\infty.
+\]</div>
+<p>Along the first column:</p>
+<div class="arithmatex">\[
+F_{i,0}=
+\begin{cases}
+g_o, &amp; i=1,\\
+F_{i-1,0}+g_e, &amp; i&gt;1,
+\end{cases}
+\qquad
+S_{i,0}=F_{i,0},
+\qquad
+E_{i,0}=-\infty.
+\]</div>
+<h3 id="62-recurrence">6.2 Recurrence<a class="headerlink" href="#62-recurrence" title="Permanent link">&para;</a></h3>
+<p>For <span class="arithmatex">\(i \ge 1, j \ge 1\)</span>,</p>
+<p>[
+M_{i,j} =
+\max{S_{i-1,j-1}, E_{i-1,j-1}, F_{i-1,j-1}}</p>
+<ul>
+<li>\sigma(x_i,y_j).
+  ]</li>
+</ul>
+<p>Gap state updates are</p>
+<div class="arithmatex">\[
+E_{i,j} = \max\{S_{i,j-1}+g_o,\; E_{i,j-1}+g_e\},
+\]</div>
+<div class="arithmatex">\[
+F_{i,j} = \max\{S_{i-1,j}+g_o,\; F_{i-1,j}+g_e\}.
+\]</div>
+<p>Then</p>
+<div class="arithmatex">\[
+S_{i,j} = \max\{M_{i,j}, E_{i,j}, F_{i,j}\}.
+\]</div>
+<p>The final global score is</p>
+<div class="arithmatex">\[
+\mathrm{Score}_{\mathrm{global}} = S_{m,n}.
+\]</div>
+<h3 id="63-traceback">6.3 Traceback<a class="headerlink" href="#63-traceback" title="Permanent link">&para;</a></h3>
+<p>The traceback matrix stores one of:</p>
+<ul>
+<li><code>M</code> for match/mismatch transition</li>
+<li><code>E</code> or <code>e</code> for gap-open or gap-extend in one direction</li>
+<li><code>F</code> or <code>f</code> for gap-open or gap-extend in the other direction</li>
+</ul>
+<p>Backtracking from <span class="arithmatex">\((m,n)\)</span> reconstructs aligned strings</p>
+<div class="arithmatex">\[
+\hat X,\hat Y
+\]</div>
+<p>with insertions represented as <code>-</code>. This is exactly the mechanism implemented by <code>align_segment_globally</code>.</p>
+<hr />
+<h2 id="7-affine-gap-local-alignment-in-windows">7. Affine-gap local alignment in windows<a class="headerlink" href="#7-affine-gap-local-alignment-in-windows" title="Permanent link">&para;</a></h2>
+<p>Local alignment is implemented in <code>perform_sw_in_window</code>. It uses a Smith–Waterman-style local objective with affine
+gaps and three score matrices <span class="arithmatex">\(S,E,F\)</span>. The local alignment is not necessarily run on the full sequences; instead, the
+code uses candidate windows derived from seeds/anchors. </p>
+<h3 id="71-state-definition">7.1 State definition<a class="headerlink" href="#71-state-definition" title="Permanent link">&para;</a></h3>
+<p>For a query substring <span class="arithmatex">\(X'\)</span> and target substring <span class="arithmatex">\(Y'\)</span>,</p>
+<ul>
+<li><span class="arithmatex">\(S_{i,j}\)</span>: best local score ending at <span class="arithmatex">\((i,j)\)</span></li>
+<li><span class="arithmatex">\(E_{i,j}\)</span>: best local score ending with a horizontal affine gap state</li>
+<li><span class="arithmatex">\(F_{i,j}\)</span>: best local score ending with a vertical affine gap state</li>
+</ul>
+<h3 id="72-initialization">7.2 Initialization<a class="headerlink" href="#72-initialization" title="Permanent link">&para;</a></h3>
+<p>All local matrices start at zero:</p>
+<div class="arithmatex">\[
+S_{0,j}=0,\quad S_{i,0}=0,
+\qquad
+E_{0,j}=0,\quad E_{i,0}=0,
+\qquad
+F_{0,j}=0,\quad F_{i,0}=0.
+\]</div>
+<h3 id="73-recurrence">7.3 Recurrence<a class="headerlink" href="#73-recurrence" title="Permanent link">&para;</a></h3>
+<p>For <span class="arithmatex">\(i,j \ge 1\)</span>,</p>
+<p>[
+M_{i,j} =
+\max{S_{i-1,j-1}, E_{i-1,j-1}, F_{i-1,j-1}}</p>
+<ul>
+<li>\sigma(x_i,y_j).
+  ]</li>
+</ul>
+<p>Gap states are floored at zero:</p>
+<div class="arithmatex">\[
+E_{i,j} = \max\{0,\; S_{i,j-1}+g_o,\; E_{i,j-1}+g_e\},
+\]</div>
+<div class="arithmatex">\[
+F_{i,j} = \max\{0,\; S_{i-1,j}+g_o,\; F_{i-1,j}+g_e\}.
+\]</div>
+<p>The local score state is also floored at zero:</p>
+<div class="arithmatex">\[
+S_{i,j} = \max\{0,\; M_{i,j},\; E_{i,j},\; F_{i,j}\}.
+\]</div>
+<p>The best local alignment score is</p>
+<div class="arithmatex">\[
+\mathrm{Score}_{\mathrm{local}} = \max_{i,j} S_{i,j}.
+\]</div>
+<h3 id="74-local-traceback">7.4 Local traceback<a class="headerlink" href="#74-local-traceback" title="Permanent link">&para;</a></h3>
+<p>Traceback starts from the cell <span class="arithmatex">\((i^\*,j^\*)\)</span> where <span class="arithmatex">\(S_{i,j}\)</span> is maximal and stops once the running state reaches 0.
+This produces the optimal local alignment within that window. The implementation then maps window-relative coordinates
+back to original sequence coordinates using stored offsets.</p>
+<hr />
+<h2 id="8-longest-common-subsequence-lcs">8. Longest common subsequence (LCS)<a class="headerlink" href="#8-longest-common-subsequence-lcs" title="Permanent link">&para;</a></h2>
+<p>The code also implements exact longest common subsequence using standard dynamic programming in
+<code>compute_lcs_for_segment</code>. This is distinct from score-based alignment: it maximizes subsequence length, not
+substitution score. </p>
+<h3 id="81-dp-table">8.1 DP table<a class="headerlink" href="#81-dp-table" title="Permanent link">&para;</a></h3>
+<p>Let <span class="arithmatex">\(L_{i,j}\)</span> be the LCS length of prefixes <span class="arithmatex">\(X_{1:i}\)</span> and <span class="arithmatex">\(Y_{1:j}\)</span>. Then</p>
+<div class="arithmatex">\[
+L_{0,j}=0,\qquad L_{i,0}=0.
+\]</div>
+<p>For <span class="arithmatex">\(i,j \ge 1\)</span>,</p>
+<div class="arithmatex">\[
+L_{i,j}=
+\begin{cases}
+L_{i-1,j-1}+1, &amp; x_i=y_j,\\[4pt]
+\max(L_{i-1,j},L_{i,j-1}), &amp; x_i\neq y_j.
+\end{cases}
+\]</div>
+<h3 id="82-backpointer-matrix">8.2 Backpointer matrix<a class="headerlink" href="#82-backpointer-matrix" title="Permanent link">&para;</a></h3>
+<p>The implementation stores directions:</p>
+<ul>
+<li><code>D</code> for diagonal match</li>
+<li><code>U</code> for up</li>
+<li><code>L</code> for left</li>
+</ul>
+<p>Backtracking reconstructs:</p>
+<ol>
+<li>the LCS string itself</li>
+<li>a gapped representation of both sequences consistent with the chosen traceback</li>
+</ol>
+<p>Thus the final outputs are:</p>
+<ul>
+<li><code>lcs_string</code></li>
+<li><code>gapped_seq1</code></li>
+<li><code>gapped_seq2</code></li>
+</ul>
+<p>with</p>
+<div class="arithmatex">\[
+| \text{lcs\_string} | = L_{m,n}.
+\]</div>
+<h3 id="83-anchored-lcs">8.3 Anchored LCS<a class="headerlink" href="#83-anchored-lcs" title="Permanent link">&para;</a></h3>
+<p>For long inputs, the code optionally uses FM-index-derived anchors first. The full problem is decomposed into
+inter-anchor segments:</p>
+<div class="arithmatex">\[
+(X_0,Y_0), (X_1,Y_1), \dots, (X_r,Y_r)
+\]</div>
+<p>LCS is computed on each segment independently, while the anchor substrings themselves are inserted directly into the
+final result. If anchor <span class="arithmatex">\(a_k\)</span> has length <span class="arithmatex">\(\ell_k\)</span>, then the final total LCS length is</p>
+<p>[
+L_{\mathrm{total}}=
+\sum_{s=0}^{r} L^{(s)}</p>
+<p>+</p>
+<p>\sum_{k=1}^{r} \ell_k,
+]</p>
+<p>where <span class="arithmatex">\(L^{(s)}\)</span> is the LCS length of segment <span class="arithmatex">\(s\)</span>. This is exactly how reconstruction is performed in the anchored
+LCS routine. </p>
+<hr />
+<h2 id="9-anchored-decomposition-of-alignment-problems">9. Anchored decomposition of alignment problems<a class="headerlink" href="#9-anchored-decomposition-of-alignment-problems" title="Permanent link">&para;</a></h2>
+<p>For both global and LCS workflows, the code may first find a best seed chain and then split the full sequences into
+inter-anchor segments.</p>
+<p>Suppose the chosen anchor chain is</p>
+<div class="arithmatex">\[
+a_1,a_2,\dots,a_r
+\]</div>
+<p>with anchor <span class="arithmatex">\(a_k=(q_k,t_k,\ell_k)\)</span>.</p>
+<p>Define segment boundaries recursively:</p>
+<ul>
+<li>segment 0: from sequence start to just before <span class="arithmatex">\(a_1\)</span></li>
+<li>segment <span class="arithmatex">\(k\)</span>: between <span class="arithmatex">\(a_k\)</span> and <span class="arithmatex">\(a_{k+1}\)</span></li>
+<li>final segment: after <span class="arithmatex">\(a_r\)</span></li>
+</ul>
+<p>These segment pairs are aligned independently, then concatenated with the exact anchor substrings themselves. If <span class="arithmatex">\((\hat
+X^{(s)},\hat Y^{(s)})\)</span> is the alignment of segment <span class="arithmatex">\(s\)</span>, the final reconstructed global-style alignment is</p>
+<div class="arithmatex">\[
+\hat X =
+\hat X^{(0)} \,\Vert\, A_1 \,\Vert\, \hat X^{(1)} \,\Vert\, A_2 \,\Vert\, \cdots \,\Vert\, A_r \,\Vert\, \hat X^{(r)},
+\]</div>
+<div class="arithmatex">\[
+\hat Y =
+\hat Y^{(0)} \,\Vert\, A_1 \,\Vert\, \hat Y^{(1)} \,\Vert\, A_2 \,\Vert\, \cdots \,\Vert\, A_r \,\Vert\, \hat Y^{(r)},
+\]</div>
+<p>where <span class="arithmatex">\(A_k\)</span> is the exact anchor substring, copied identically into both aligned outputs.
+{index=16}</p>
+<hr />
+<h2 id="10-matrix-output-and-serialization">10. Matrix output and serialization<a class="headerlink" href="#10-matrix-output-and-serialization" title="Permanent link">&para;</a></h2>
+<p>The code supports exporting DP and traceback-style matrices in both text and binary form.</p>
+<h3 id="101-integer-dp-matrix">10.1 Integer DP matrix<a class="headerlink" href="#101-integer-dp-matrix" title="Permanent link">&para;</a></h3>
+<p>If <span class="arithmatex">\(D \in \mathbb{Z}^{r \times c}\)</span> is a DP matrix, the binary writer stores:</p>
+<ol>
+<li>number of rows</li>
+<li>number of columns</li>
+<li>row-major matrix entries</li>
+</ol>
+<p>so the serialized payload is conceptually</p>
+<div class="arithmatex">\[
+(r,c,D_{0,0},D_{0,1},\dots,D_{r-1,c-1}).
+\]</div>
+<h3 id="102-character-matrix">10.2 Character matrix<a class="headerlink" href="#102-character-matrix" title="Permanent link">&para;</a></h3>
+<p>For traceback matrices <span class="arithmatex">\(T \in \Sigma^{r \times c}\)</span>, the character writer stores the same leading dimensions and then
+the row-major flattened character data, padding rows if needed. This matches the matrix export utilities in the code. </p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 <a href="https://bibymaths.github.io">Abhinav Mishra</a>.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.tabs.sticky", "content.code.copy", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

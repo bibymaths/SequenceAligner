@@ -1,0 +1,6 @@
+var searchData=
+[
+  ['compute_5flcs_5ffor_5fsegment_0',['compute_lcs_for_segment',['../main__fmindex_8cpp.html#a2fc65e85a44ea19f97c3012971afc508',1,'main_fmindex.cpp']]],
+  ['compute_5flocal_5faffine_5fcell_1',['compute_local_affine_cell',['../main_8cpp.html#a67e4d95e8f469833ab6141bff88c401c',1,'main.cpp']]],
+  ['computeaffinedprow_2',['computeaffinedprow',['../main_8cpp.html#a62b102c34e17a04f52aea9782a05375b',1,'computeAffineDPRow(int i, const string &amp;x, const string &amp;y, vector&lt; int &gt; &amp;prev_row, vector&lt; int &gt; &amp;prev_gapX, vector&lt; int &gt; &amp;prev_gapY, vector&lt; int &gt; &amp;curr_row, vector&lt; int &gt; &amp;curr_gapX, vector&lt; int &gt; &amp;curr_gapY, vector&lt; char &gt; &amp;curr_trace_row, ScoreFn score_fn):&#160;main.cpp'],['../main__fmindex_8cpp.html#a76dcd21f6a2fc7948cf09b145344cdf6',1,'computeAffineDPRow(int i_row, const std::string &amp;x_str, const std::string &amp;y_str, std::vector&lt; int &gt; &amp;prev_s_row, std::vector&lt; int &gt; &amp;prev_e_row, std::vector&lt; int &gt; &amp;prev_f_row, std::vector&lt; int &gt; &amp;curr_s_row, std::vector&lt; int &gt; &amp;curr_e_row, std::vector&lt; int &gt; &amp;curr_f_row, std::vector&lt; char &gt; &amp;curr_trace_s_row, ScoreFn score_fn_local, bool isGlobal):&#160;main_fmindex.cpp']]]
+];
