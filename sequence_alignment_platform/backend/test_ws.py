@@ -1,7 +1,6 @@
 import asyncio
 import httpx
 import websockets
-import json
 
 async def run_full_test():
     base_url = "http://127.0.0.1:8000"
