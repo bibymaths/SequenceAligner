@@ -16,7 +16,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-
 def load_path(path_file: Path) -> List[Tuple[int, int]]:
     """Load a list of DP matrix coordinates from a path file.
 
@@ -35,29 +34,40 @@ def load_path(path_file: Path) -> List[Tuple[int, int]]:
         file.
     """
     coords: List[Tuple[int, int]] = []
-    with path_file.open('r') as fh:
+    with path_file.open("r") as fh:
         for line_no, line in enumerate(fh, start=1):
             stripped = line.strip()
-            if not stripped or stripped.startswith('#'):
+            if not stripped or stripped.startswith("#"):
                 continue
+
             parts = stripped.split()
             if len(parts) != 2:
                 logger.warning(
-                    "Skipping malformed line %d in %s: %s", line_no, path_file, stripped
+                    "Skipping malformed line %d in %s: %s",
+                    line_no, path_file, stripped
                 )
                 continue
+
             try:
-                i, j = int(parts[0]), int(parts[1])
+                col, row = int(parts[0]), int(parts[1])
             except ValueError:
                 logger.warning(
-                    "Non‑integer coordinate on line %d in %s: %s", line_no, path_file, stripped
+                    "Non-integer coordinate on line %d in %s: %s",
+                    line_no, path_file, stripped
                 )
                 continue
-            coords.append((i, j))
+
+            # Source writes path as (col, row), convert to (row, col)
+            coords.append((row, col))
+
     return coords
 
-
-def validate_path_dimensions(path: List[Tuple[int, int]], shape: Tuple[int, int]) -> None:
+def validate_path_dimensions(
+        path: List[Tuple[int, int]],
+        shape: Tuple[int, int],
+        *,
+        allow_transposed: bool = False,
+) -> Tuple[int, int]:
     """Ensure all coordinates in a path lie within a DP matrix.
 
     Parameters
@@ -65,18 +75,73 @@ def validate_path_dimensions(path: List[Tuple[int, int]], shape: Tuple[int, int]
     path : list[tuple[int, int]]
         The list of (row, column) coordinates.
     shape : tuple[int, int]
-        Shape of the dynamic programming matrix.
+        Shape of the dynamic programming matrix as (rows, cols).
+    allow_transposed : bool, optional
+        If True, also test the transposed interpretation (cols, rows).
+        When the original shape fails but the transposed shape fits,
+        the transposed shape is returned.
+
+    Returns
+    -------
+    tuple[int, int]
+        The validated shape. Normally this is the input ``shape``.
+        If ``allow_transposed=True`` and only the transposed shape fits,
+        returns ``(cols, rows)``.
 
     Raises
     ------
     ValueError
-        If any coordinate lies outside the matrix bounds.
+        If any coordinate lies outside the matrix bounds for both the
+        given shape and, when enabled, the transposed shape.
     """
     rows, cols = shape
-    for (i, j) in path:
-        if not (0 <= i < rows and 0 <= j < cols):
-            raise ValueError(f"Path coordinate ({i}, {j}) is outside matrix shape {shape}")
 
+    if not path:
+        return shape
+
+    def fits(test_shape: Tuple[int, int]) -> bool:
+        test_rows, test_cols = test_shape
+        return all(0 <= i < test_rows and 0 <= j < test_cols for i, j in path)
+
+    # First try the given shape
+    if fits(shape):
+        return shape
+
+    # Only define and use transpose logic when requested
+    if allow_transposed:
+        transposed_shape = (cols, rows)
+
+        if fits(transposed_shape):
+            logger.warning(
+                "Path does not fit matrix shape %s but does fit transposed shape %s. "
+                "Using transposed interpretation.",
+                shape,
+                transposed_shape,
+            )
+            return transposed_shape
+    else:
+        transposed_shape = None
+
+    # Build a more informative error
+    max_i = max(i for i, _ in path)
+    max_j = max(j for _, j in path)
+
+    msg = (
+        f"Path coordinates exceed matrix bounds for shape {shape}. "
+        f"Observed max path coordinate = ({max_i}, {max_j}), "
+        f"valid max = ({rows - 1}, {cols - 1})."
+    )
+
+    if allow_transposed and transposed_shape is not None:
+        t_rows, t_cols = transposed_shape
+        msg += (
+            f" Transposed shape {transposed_shape} has valid max "
+            f"= ({t_rows - 1}, {t_cols - 1})."
+        )
+        if fits(transposed_shape):
+            msg += " The path fits the transposed shape."
+
+    raise ValueError(msg)
 
 def overlay_path_on_matrix(matrix: np.ndarray, path: List[Tuple[int, int]]) -> np.ndarray:
     """Create a copy of the DP matrix with the traceback path overlaid.

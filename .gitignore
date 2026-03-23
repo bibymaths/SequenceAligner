@@ -10,8 +10,9 @@ data/
 .snakemake/
 
 # Results directories
-results*/
-plots*/
+*results*/
+*plots*/
+*analysis*/
 aligner
 fmindex
 # Compiled Object files

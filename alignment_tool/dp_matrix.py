@@ -53,64 +53,124 @@ def load_dp_matrix(
         shape: Tuple[int, int],
         dtype: str = "float64",
 ) -> np.ndarray:
-    """Load a DP matrix from binary or text representation.
-
-    Parameters
-    ----------
-    bin_path : Path, optional
-        Path to binary file containing the matrix in row‑major order.
-    txt_path : Path, optional
-        Path to text file containing whitespace separated rows of
-        scores. Used as a fallback if the binary file is missing.
-    shape : tuple[int, int]
-        The expected shape of the matrix. This must match the number
-        of elements in the file.
-    dtype : str, optional
-        The NumPy data type to use when reading the binary file. The
-        default of ``float64`` should accommodate most scoring
-        matrices. If the binary file was created with 32‑bit ints, you
-        should pass ``dtype='int32'``.
-
-    Returns
-    -------
-    np.ndarray
-        The loaded DP matrix with shape ``shape``. If a binary file
-        exists, the returned array may be a ``memmap`` backed by the
-        file; otherwise, a regular NumPy array loaded from the text file.
-
-    Raises
-    ------
-    FileNotFoundError
-        If neither binary nor text file is provided.
-    ValueError
-        If the loaded data does not match the expected shape.
     """
+    Load a DP matrix from binary or text representation with support for int32 headers.
+
+    This function attempts, in order:
+    1. int32 header (rows, cols) + int32 matrix
+    2. raw int32
+    3. raw float32
+    4. raw float64
+    5. fallback to txt
+
+    If header is detected, it OVERRIDES the provided shape.
+
+    Notes
+    -----
+    - Header format assumed: first 8 bytes = two int32 values (rows, cols)
+    - Matrix stored in row-major order
+    """
+
     if bin_path and bin_path.exists():
         logger.debug("Loading DP matrix from binary file %s", bin_path)
-        # Use memmap to avoid loading entire matrix into memory when not needed
-        total_elements = shape[0] * shape[1]
+
         file_size = bin_path.stat().st_size
-        dtype_np = np.dtype(dtype)
-        expected_bytes = dtype_np.itemsize * total_elements
-        if file_size < expected_bytes:
-            logger.warning(
-                "Binary DP matrix %s is smaller than expected (%d bytes < %d bytes)",
-                bin_path, file_size, expected_bytes,
-            )
+
+        # --------------------------------------------------
+        # 1. Try int32 header (rows, cols) + int32 matrix
+        # --------------------------------------------------
         try:
-            memmap = np.memmap(bin_path, dtype=dtype_np, mode='r', shape=shape)
+            with open(bin_path, "rb") as fh:
+                header = np.fromfile(fh, dtype=np.int32, count=2)
+
+            if len(header) == 2:
+                rows, cols = int(header[0]), int(header[1])
+
+                if rows > 0 and cols > 0:
+                    expected_bytes = 8 + rows * cols * 4
+
+                    if expected_bytes == file_size:
+                        logger.info(
+                            "Detected int32 header: shape=(%d, %d)", rows, cols
+                        )
+
+                        return np.memmap(
+                            bin_path,
+                            dtype=np.int32,
+                            mode="r",
+                            offset=8,
+                            shape=(rows, cols),
+                        )
         except Exception as e:
-            logger.error("Failed to memory map %s: %s", bin_path, e)
-            raise
-        return memmap
+            logger.debug("Header detection failed: %s", e)
+
+        # --------------------------------------------------
+        # 2. Try raw int32
+        # --------------------------------------------------
+        if file_size % 4 == 0:
+            total_elements = file_size // 4
+            if total_elements == shape[0] * shape[1]:
+                logger.info("Loading raw int32 matrix with expected shape")
+                return np.memmap(
+                    bin_path,
+                    dtype=np.int32,
+                    mode="r",
+                    shape=shape,
+                )
+
+        # --------------------------------------------------
+        # 3. Try raw float32
+        # --------------------------------------------------
+        if file_size % 4 == 0:
+            total_elements = file_size // 4
+            if total_elements == shape[0] * shape[1]:
+                logger.info("Loading raw float32 matrix with expected shape")
+                return np.memmap(
+                    bin_path,
+                    dtype=np.float32,
+                    mode="r",
+                    shape=shape,
+                )
+
+        # --------------------------------------------------
+        # 4. Try raw float64 (your original assumption)
+        # --------------------------------------------------
+        if file_size % 8 == 0:
+            total_elements = file_size // 8
+            if total_elements == shape[0] * shape[1]:
+                logger.info("Loading raw float64 matrix with expected shape")
+                return np.memmap(
+                    bin_path,
+                    dtype=np.float64,
+                    mode="r",
+                    shape=shape,
+                )
+
+        # --------------------------------------------------
+        # If nothing worked → error
+        # --------------------------------------------------
+        logger.error(
+            "Failed to infer binary DP matrix format for %s (file size: %d bytes)",
+            bin_path, file_size
+        )
+        raise ValueError(f"Unsupported or inconsistent DP matrix format: {bin_path}")
+
+    # --------------------------------------------------
+    # 5. Fallback to text
+    # --------------------------------------------------
     elif txt_path and txt_path.exists():
         logger.debug("Loading DP matrix from text file %s", txt_path)
+
         data = np.loadtxt(txt_path, dtype=float)
+
         if data.shape != shape:
-            raise ValueError(
-                f"Text DP matrix at {txt_path} has shape {data.shape}, expected {shape}"
+            logger.warning(
+                "Text matrix shape %s does not match expected %s — using text shape",
+                data.shape, shape
             )
+
         return data
+
     else:
         raise FileNotFoundError(
             f"No DP matrix file found. Checked binary: {bin_path}, text: {txt_path}"
