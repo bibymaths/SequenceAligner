@@ -16,6 +16,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
 def load_path(path_file: Path) -> List[Tuple[int, int]]:
     """Load a list of DP matrix coordinates from a path file.
 
@@ -43,8 +44,7 @@ def load_path(path_file: Path) -> List[Tuple[int, int]]:
             parts = stripped.split()
             if len(parts) != 2:
                 logger.warning(
-                    "Skipping malformed line %d in %s: %s",
-                    line_no, path_file, stripped
+                    "Skipping malformed line %d in %s: %s", line_no, path_file, stripped
                 )
                 continue
 
@@ -53,7 +53,9 @@ def load_path(path_file: Path) -> List[Tuple[int, int]]:
             except ValueError:
                 logger.warning(
                     "Non-integer coordinate on line %d in %s: %s",
-                    line_no, path_file, stripped
+                    line_no,
+                    path_file,
+                    stripped,
                 )
                 continue
 
@@ -62,11 +64,12 @@ def load_path(path_file: Path) -> List[Tuple[int, int]]:
 
     return coords
 
+
 def validate_path_dimensions(
-        path: List[Tuple[int, int]],
-        shape: Tuple[int, int],
-        *,
-        allow_transposed: bool = False,
+    path: List[Tuple[int, int]],
+    shape: Tuple[int, int],
+    *,
+    allow_transposed: bool = False,
 ) -> Tuple[int, int]:
     """Ensure all coordinates in a path lie within a DP matrix.
 
@@ -143,7 +146,10 @@ def validate_path_dimensions(
 
     raise ValueError(msg)
 
-def overlay_path_on_matrix(matrix: np.ndarray, path: List[Tuple[int, int]]) -> np.ndarray:
+
+def overlay_path_on_matrix(
+    matrix: np.ndarray, path: List[Tuple[int, int]]
+) -> np.ndarray:
     """Create a copy of the DP matrix with the traceback path overlaid.
 
     The original matrix is not modified. Path positions are set to
@@ -163,7 +169,7 @@ def overlay_path_on_matrix(matrix: np.ndarray, path: List[Tuple[int, int]]) -> n
         A copy of ``matrix`` where path cells are set to NaN.
     """
     overlay = np.array(matrix, copy=True, dtype=float)
-    for (i, j) in path:
+    for i, j in path:
         if 0 <= i < overlay.shape[0] and 0 <= j < overlay.shape[1]:
             overlay[i, j] = np.nan
     return overlay
@@ -210,19 +216,19 @@ def compute_path_metrics(path: List[Tuple[int, int]]) -> dict:
         di = i - prev_i
         dj = j - prev_j
         if di == 1 and dj == 1:
-            step = 'diag'
+            step = "diag"
             diagonal_steps += 1
         elif di == 1 and dj == 0:
-            step = 'vert'
+            step = "vert"
             vertical_steps += 1
         elif di == 0 and dj == 1:
-            step = 'horiz'
+            step = "horiz"
             horizontal_steps += 1
         else:
             # Non unit step: record as change
-            step = 'other'
+            step = "other"
         # Track gap runs: vertical or horizontal contiguous segments
-        if step in {'vert', 'horiz'}:
+        if step in {"vert", "horiz"}:
             if prev_direction == step:
                 current_gap_run += 1
             else:

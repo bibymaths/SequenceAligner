@@ -19,7 +19,14 @@ from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 import pandas as pd
 
-from . import block_detection, dp_matrix, fasta_utils, file_inventory, lcs_utils, path_utils
+from . import (
+    block_detection,
+    dp_matrix,
+    fasta_utils,
+    file_inventory,
+    path_utils,
+)
+
 from . import residue_profiles, substitution_analysis, plotting, comparison, summary
 
 logger = logging.getLogger(__name__)
@@ -64,12 +71,16 @@ def parse_common_args(subparser: argparse.ArgumentParser) -> None:
         The parser to which arguments are added.
     """
     subparser.add_argument(
-        "--results-dir", type=Path, required=True,
-        help="Directory containing alignment output files"
+        "--results-dir",
+        type=Path,
+        required=True,
+        help="Directory containing alignment output files",
     )
     subparser.add_argument(
-        "--outdir", type=Path, default=None,
-        help="Directory to write outputs (default: results-dir)"
+        "--outdir",
+        type=Path,
+        default=None,
+        help="Directory to write outputs (default: results-dir)",
     )
     subparser.add_argument(
         "--prefix", type=str, default="alignment", help="Prefix for output files"
@@ -78,29 +89,38 @@ def parse_common_args(subparser: argparse.ArgumentParser) -> None:
         "--overwrite", action="store_true", help="Overwrite existing output files"
     )
     subparser.add_argument(
-        "--log-file", type=Path, default=None,
-        help="Write logs to this file"
+        "--log-file", type=Path, default=None, help="Write logs to this file"
     )
     subparser.add_argument(
-        "--blosum", type=str, default="blosum62",
+        "--blosum",
+        type=str,
+        default="blosum62",
         choices=["blosum62", "none"],
-        help="Substitution matrix to use for similarity metrics"
+        help="Substitution matrix to use for similarity metrics",
     )
     subparser.add_argument(
-        "--min-block-length", type=int, default=5,
-        help="Minimum length of conserved block to report"
+        "--min-block-length",
+        type=int,
+        default=5,
+        help="Minimum length of conserved block to report",
     )
     subparser.add_argument(
-        "--identity-threshold", type=float, default=0.7,
-        help="Threshold for classifying a block as high identity"
+        "--identity-threshold",
+        type=float,
+        default=0.7,
+        help="Threshold for classifying a block as high identity",
     )
     subparser.add_argument(
-        "--similarity-threshold", type=float, default=0.8,
-        help="Threshold for classifying a block as conservative"
+        "--similarity-threshold",
+        type=float,
+        default=0.8,
+        help="Threshold for classifying a block as conservative",
     )
     subparser.add_argument(
-        "--window", type=int, default=2,
-        help="Window size for local support and gap proximity calculations"
+        "--window",
+        type=int,
+        default=2,
+        help="Window size for local support and gap proximity calculations",
     )
     subparser.add_argument(
         "--plot-dpi", type=int, default=150, help="Resolution (dpi) for plots"
@@ -111,17 +131,17 @@ def parse_common_args(subparser: argparse.ArgumentParser) -> None:
 
 
 def analyse_method(
-        method: str,
-        files: file_inventory.AlignmentFiles,
-        substitution_matrix: Optional[Dict[str, Dict[str, float]]],
-        outdir: Path,
-        prefix: str,
-        min_block_length: int,
-        identity_threshold: float,
-        similarity_threshold: float,
-        window: int,
-        plot_dpi: int,
-        overwrite: bool,
+    method: str,
+    files: file_inventory.AlignmentFiles,
+    substitution_matrix: Optional[Dict[str, Dict[str, float]]],
+    outdir: Path,
+    prefix: str,
+    min_block_length: int,
+    identity_threshold: float,
+    similarity_threshold: float,
+    window: int,
+    plot_dpi: int,
+    overwrite: bool,
 ) -> Tuple[Dict[str, Any], pd.DataFrame, pd.DataFrame]:
     """Perform analysis for a single alignment method.
 
@@ -196,28 +216,30 @@ def analyse_method(
     seq_a_id, seq_b_id = ids[0], ids[1]
     seq_a = seqs[seq_a_id]
     seq_b = seqs[seq_b_id]
-    results['sequence_ids'] = (seq_a_id, seq_b_id)
+    results["sequence_ids"] = (seq_a_id, seq_b_id)
     # Build coordinate maps
     a_map, b_map = fasta_utils.build_coordinate_maps(seq_a, seq_b)
-    results['a_map'] = a_map
-    results['b_map'] = b_map
+    results["a_map"] = a_map
+    results["b_map"] = b_map
     # Alignment statistics
-    stats = fasta_utils.compute_alignment_stats(seq_a, seq_b, substitution_matrix, similarity_threshold=0)
-    results['alignment_stats'] = stats
+    stats = fasta_utils.compute_alignment_stats(
+        seq_a, seq_b, substitution_matrix, similarity_threshold=0
+    )
+    results["alignment_stats"] = stats
     # Ungapped lengths
-    len_a = stats['ungapped_length_a']
-    len_b = stats['ungapped_length_b']
+    len_a = stats["ungapped_length_a"]
+    len_b = stats["ungapped_length_b"]
     # Load DP matrix
     shape = dp_matrix.infer_shape(len_a, len_b)
     # For LCS, use int dtype
-    dtype = 'int32' if method == 'lcs' else 'float64'
+    dtype = "int32" if method == "lcs" else "float64"
     try:
         dp_mat = dp_matrix.load_dp_matrix(dp_bin, dp_txt, shape, dtype=dtype)
     except Exception as exc:
         logger.warning("Failed to load DP matrix for %s: %s", method, exc)
         dp_mat = np.zeros(shape)
-    results['dp_shape'] = dp_mat.shape
-    results['dp_matrix'] = dp_mat
+    results["dp_shape"] = dp_mat.shape
+    results["dp_matrix"] = dp_mat
     # Load path coordinates
     path_coords: List[Tuple[int, int]] = []
     if path_file and path_file.exists():
@@ -226,104 +248,129 @@ def analyse_method(
             path_utils.validate_path_dimensions(path_coords, dp_mat.shape)
         except Exception as exc:
             logger.warning("Invalid path coordinates for %s: %s", method, exc)
-    results['path_coords'] = path_coords
+    results["path_coords"] = path_coords
     # Path metrics
     path_metrics = path_utils.compute_path_metrics(path_coords)
-    results['path_metrics'] = path_metrics
+    results["path_metrics"] = path_metrics
     # Stats metadata (for global/local only)
     if stats_file and stats_file.exists():
         try:
-            with stats_file.open('r') as fh:
+            with stats_file.open("r") as fh:
                 stats_meta = json.load(fh)
-            results['stats_metadata'] = stats_meta
+            results["stats_metadata"] = stats_meta
         except Exception as exc:
             logger.warning("Failed to parse stats file %s: %s", stats_file, exc)
     # Conserved blocks
     blocks_df = block_detection.detect_blocks_to_df(
-        seq_a, seq_b, a_map, b_map, substitution_matrix or {},
+        seq_a,
+        seq_b,
+        a_map,
+        b_map,
+        substitution_matrix or {},
         min_block_length=min_block_length,
         identity_threshold=identity_threshold,
         similarity_threshold=similarity_threshold,
     )
-    results['blocks_df'] = blocks_df
+    results["blocks_df"] = blocks_df
     # Residue support (for this method only) – compute for both sequences separately
     method_data_a = {
-        'a_map': a_map,
-        'b_map': b_map,
-        'aligned_a': seq_a,
-        'aligned_b': seq_b,
-        'dp_matrix': dp_mat,
-        'blocks': blocks_df,
+        "a_map": a_map,
+        "b_map": b_map,
+        "aligned_a": seq_a,
+        "aligned_b": seq_b,
+        "dp_matrix": dp_mat,
+        "blocks": blocks_df,
     }
     method_data_b = {
-        'a_map': b_map,
-        'b_map': a_map,
-        'aligned_a': seq_b,
-        'aligned_b': seq_a,
-        'dp_matrix': dp_mat.T,  # transpose for partner orientation
-        'blocks': None,  # blocks detection is on seq_a orientation
+        "a_map": b_map,
+        "b_map": a_map,
+        "aligned_a": seq_b,
+        "aligned_b": seq_a,
+        "dp_matrix": dp_mat.T,  # transpose for partner orientation
+        "blocks": None,  # blocks detection is on seq_a orientation
     }
     # Compute residue support; note that compute_residue_support expects dict of methods -> data; we provide one
-    support_df_a = residue_profiles.compute_residue_support(len_a, seq_a.replace('-', ''), {method: method_data_a},
-                                                            window=window)
-    support_df_b = residue_profiles.compute_residue_support(len_b, seq_b.replace('-', ''), {method: method_data_b},
-                                                            window=window)
+    support_df_a = residue_profiles.compute_residue_support(
+        len_a, seq_a.replace("-", ""), {method: method_data_a}, window=window
+    )
+    support_df_b = residue_profiles.compute_residue_support(
+        len_b, seq_b.replace("-", ""), {method: method_data_b}, window=window
+    )
     # Write outputs
     # Prepare output dir
     outdir.mkdir(parents=True, exist_ok=True)
     # Write alignment summary
     summary_tsv = outdir / f"{out_prefix}_alignment_summary.tsv"
     if overwrite or not summary_tsv.exists():
-        pd.DataFrame([stats]).to_csv(summary_tsv, sep='\t', index=False)
+        pd.DataFrame([stats]).to_csv(summary_tsv, sep="\t", index=False)
     # Write blocks
     blocks_tsv = outdir / f"{out_prefix}_conserved_blocks.tsv"
     if overwrite or not blocks_tsv.exists():
-        blocks_df.to_csv(blocks_tsv, sep='\t', index=False)
+        blocks_df.to_csv(blocks_tsv, sep="\t", index=False)
     # Write path metrics
     path_metrics_tsv = outdir / f"{out_prefix}_path_metrics.tsv"
     if overwrite or not path_metrics_tsv.exists():
-        pd.DataFrame([path_metrics]).to_csv(path_metrics_tsv, sep='\t', index=False)
+        pd.DataFrame([path_metrics]).to_csv(path_metrics_tsv, sep="\t", index=False)
     # Write residue support (two files) – columns names will have method prefix
     support_a_tsv = outdir / f"{out_prefix}_residue_support_{seq_a_id}.tsv"
     if overwrite or not support_a_tsv.exists():
-        support_df_a.to_csv(support_a_tsv, sep='\t', index=False)
+        support_df_a.to_csv(support_a_tsv, sep="\t", index=False)
     support_b_tsv = outdir / f"{out_prefix}_residue_support_{seq_b_id}.tsv"
     if overwrite or not support_b_tsv.exists():
-        support_df_b.to_csv(support_b_tsv, sep='\t', index=False)
+        support_df_b.to_csv(support_b_tsv, sep="\t", index=False)
     # Substitution summary
-    subs_df = substitution_analysis.summarise_substitutions(seq_a, seq_b, substitution_matrix)
+    subs_df = substitution_analysis.summarise_substitutions(
+        seq_a, seq_b, substitution_matrix
+    )
     subs_tsv = outdir / f"{out_prefix}_substitution_summary.tsv"
     if overwrite or not subs_tsv.exists():
-        subs_df.to_csv(subs_tsv, sep='\t', index=False)
+        subs_df.to_csv(subs_tsv, sep="\t", index=False)
     # Indel regions (gap runs) – use path metrics to derive approximate indel region counts; for now, record path metrics
     # Plot DP heatmap
     heatmap_png = outdir / f"{out_prefix}_dp_heatmap.png"
     if overwrite or not heatmap_png.exists():
-        plotting.plot_dp_heatmap(dp_mat, heatmap_png, title=f"{method.upper()} DP heatmap", dpi=plot_dpi)
+        plotting.plot_dp_heatmap(
+            dp_mat, heatmap_png, title=f"{method.upper()} DP heatmap", dpi=plot_dpi
+        )
     # Plot DP heatmap with path
     heatmap_path_png = outdir / f"{out_prefix}_dp_heatmap_with_path.png"
     if overwrite or not heatmap_path_png.exists():
-        plotting.plot_dp_heatmap(dp_mat, heatmap_path_png, path_coords=path_coords,
-                                 title=f"{method.upper()} DP with path", dpi=plot_dpi)
+        plotting.plot_dp_heatmap(
+            dp_mat,
+            heatmap_path_png,
+            path_coords=path_coords,
+            title=f"{method.upper()} DP with path",
+            dpi=plot_dpi,
+        )
     # Plot residue support for both sequences; combine both into one plot for all metrics
     support_plot_a = outdir / f"{out_prefix}_residue_support_{seq_a_id}.png"
     if overwrite or not support_plot_a.exists():
-        plotting.plot_residue_support(support_df_a, [method], support_plot_a,
-                                      title=f"{method.upper()} residue support – {seq_a_id}", dpi=plot_dpi)
+        plotting.plot_residue_support(
+            support_df_a,
+            [method],
+            support_plot_a,
+            title=f"{method.upper()} residue support – {seq_a_id}",
+            dpi=plot_dpi,
+        )
     support_plot_b = outdir / f"{out_prefix}_residue_support_{seq_b_id}.png"
     if overwrite or not support_plot_b.exists():
-        plotting.plot_residue_support(support_df_b, [method], support_plot_b,
-                                      title=f"{method.upper()} residue support – {seq_b_id}", dpi=plot_dpi)
+        plotting.plot_residue_support(
+            support_df_b,
+            [method],
+            support_plot_b,
+            title=f"{method.upper()} residue support – {seq_b_id}",
+            dpi=plot_dpi,
+        )
     return results, support_df_a, support_df_b
 
 
 def compare_methods(
-        support_a: Dict[str, pd.DataFrame],
-        seq_a_id: str,
-        outdir: Path,
-        prefix: str,
-        plot_dpi: int,
-        overwrite: bool,
+    support_a: Dict[str, pd.DataFrame],
+    seq_a_id: str,
+    outdir: Path,
+    prefix: str,
+    plot_dpi: int,
+    overwrite: bool,
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """Perform comparative analysis across alignment methods for one sequence.
 
@@ -355,17 +402,26 @@ def compare_methods(
     for method, df in support_a.items():
         method_prefix = method
         if base_df is None:
-            base_df = df[['residue_index', 'residue', f"{method_prefix}_participates"]].copy()
+            base_df = df[
+                ["residue_index", "residue", f"{method_prefix}_participates"]
+            ].copy()
         else:
-            base_df = base_df.merge(df[['residue_index', f"{method_prefix}_participates"]], on='residue_index',
-                                    how='outer')
-    base_df = base_df.fillna({col: False for col in base_df.columns if col.endswith('_participates')})
+            base_df = base_df.merge(
+                df[["residue_index", f"{method_prefix}_participates"]],
+                on="residue_index",
+                how="outer",
+            )
+    base_df = base_df.fillna(
+        {col: False for col in base_df.columns if col.endswith("_participates")}
+    )
     # Rename columns to global/local/lcs participates
-    base_df = base_df.rename(columns={
-        'global_participates': 'global_participates',
-        'local_participates': 'local_participates',
-        'lcs_participates': 'lcs_participates'
-    })
+    base_df = base_df.rename(
+        columns={
+            "global_participates": "global_participates",
+            "local_participates": "local_participates",
+            "lcs_participates": "lcs_participates",
+        }
+    )
     # Assign categories
     category_series = comparison.assign_participation_categories(base_df)
     # Summarise segments
@@ -373,13 +429,13 @@ def compare_methods(
     # Write category assignments
     cat_tsv = outdir / f"{prefix}_alignment_method_comparison_categories_{seq_a_id}.tsv"
     if overwrite or not cat_tsv.exists():
-        pd.DataFrame({'residue_index': category_series.index, 'category': category_series.values}).to_csv(cat_tsv,
-                                                                                                          sep='\t',
-                                                                                                          index=False)
+        pd.DataFrame(
+            {"residue_index": category_series.index, "category": category_series.values}
+        ).to_csv(cat_tsv, sep="\t", index=False)
     # Write segments summary
     seg_tsv = outdir / f"{prefix}_alignment_method_comparison_{seq_a_id}.tsv"
     if overwrite or not seg_tsv.exists():
-        segments_df.to_csv(seg_tsv, sep='\t', index=False)
+        segments_df.to_csv(seg_tsv, sep="\t", index=False)
     # Plot method comparison
     plot_path = outdir / f"{prefix}_alignment_method_comparison_{seq_a_id}.png"
     if overwrite or not plot_path.exists():
@@ -406,10 +462,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         Exit code: 0 on success, non‑zero on failure.
     """
     parser = argparse.ArgumentParser(description="Protein alignment analysis tool")
-    subparsers = parser.add_subparsers(dest='command', required=True, help='Subcommands')
+    subparsers = parser.add_subparsers(
+        dest="command", required=True, help="Subcommands"
+    )
 
     # Subcommands
-    for cmd in ['global', 'local', 'lcs', 'full', 'compare']:
+    for cmd in ["global", "local", "lcs", "full", "compare"]:
         sp = subparsers.add_parser(cmd, help=f"Run {cmd} analysis")
         parse_common_args(sp)
 
@@ -444,10 +502,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     if command in {"global", "local", "lcs"}:
         methods_to_run = [command]
     elif command == "full":
-        methods_to_run = [m for m in ['global', 'local', 'lcs'] if getattr(files, f"{m}_alignment")]
+        methods_to_run = [
+            m for m in ["global", "local", "lcs"] if getattr(files, f"{m}_alignment")
+        ]
     elif command == "compare":
         # For comparison we need at least two methods; run those available
-        methods_to_run = [m for m in ['global', 'local', 'lcs'] if getattr(files, f"{m}_alignment")]
+        methods_to_run = [
+            m for m in ["global", "local", "lcs"] if getattr(files, f"{m}_alignment")
+        ]
         if len(methods_to_run) < 2:
             logger.error("Comparison requires at least two alignment methods available")
             return 1
@@ -466,9 +528,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         # Determine if outputs already exist and skip if not overwrite
         try:
             results, support_df_a, support_df_b = analyse_method(
-                m, files, substitution_matrix, outdir, args.prefix,
-                args.min_block_length, args.identity_threshold,
-                args.similarity_threshold, args.window, args.plot_dpi,
+                m,
+                files,
+                substitution_matrix,
+                outdir,
+                args.prefix,
+                args.min_block_length,
+                args.identity_threshold,
+                args.similarity_threshold,
+                args.window,
+                args.plot_dpi,
                 args.overwrite,
             )
         except Exception as exc:
@@ -477,20 +546,27 @@ def main(argv: Optional[List[str]] = None) -> int:
         all_method_results[m] = results
         all_support_a[m] = support_df_a
         all_support_b[m] = support_df_b
-        alignment_stats[m] = results.get('alignment_stats', {})
-        dp_shapes[m] = results.get('dp_shape', ())
-        if 'stats_metadata' in results:
-            stats_metadata[m] = results['stats_metadata']
+        alignment_stats[m] = results.get("alignment_stats", {})
+        dp_shapes[m] = results.get("dp_shape", ())
+        if "stats_metadata" in results:
+            stats_metadata[m] = results["stats_metadata"]
         # Determine sequence ids/lengths once
         if sequence_ids is None:
-            sequence_ids = results['sequence_ids']
-            sequence_lengths = (results['alignment_stats']['ungapped_length_a'],
-                                results['alignment_stats']['ungapped_length_b'])
+            sequence_ids = results["sequence_ids"]
+            sequence_lengths = (
+                results["alignment_stats"]["ungapped_length_a"],
+                results["alignment_stats"]["ungapped_length_b"],
+            )
         # Determine top blocks: sort by frac_identity descending
-        blocks_df = results['blocks_df']
+        blocks_df = results["blocks_df"]
         if blocks_df is not None and not blocks_df.empty:
-            sorted_blocks = blocks_df.sort_values(by=['frac_identity', 'frac_similarity'], ascending=False).head(
-                3).to_dict(orient='records')
+            sorted_blocks = (
+                blocks_df.sort_values(
+                    by=["frac_identity", "frac_similarity"], ascending=False
+                )
+                .head(3)
+                .to_dict(orient="records")
+            )
             blocks_top[m] = sorted_blocks
         else:
             blocks_top[m] = []
@@ -501,10 +577,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 1
         seq_a_id, seq_b_id = sequence_ids
         # Sequence A comparison
-        seg_df_a, cat_series_a = compare_methods(all_support_a, seq_a_id, outdir, args.prefix, args.plot_dpi,
-                                                 args.overwrite)
-        seg_df_b, cat_series_b = compare_methods(all_support_b, seq_b_id, outdir, args.prefix, args.plot_dpi,
-                                                 args.overwrite)
+        seg_df_a, cat_series_a = compare_methods(
+            all_support_a, seq_a_id, outdir, args.prefix, args.plot_dpi, args.overwrite
+        )
+        seg_df_b, cat_series_b = compare_methods(
+            all_support_b, seq_b_id, outdir, args.prefix, args.plot_dpi, args.overwrite
+        )
         # Summarise category counts
         category_counts = {
             seq_a_id: cat_series_a.value_counts().to_dict(),
@@ -513,15 +591,25 @@ def main(argv: Optional[List[str]] = None) -> int:
         # For full: create summary JSON
         if command == "full":
             input_files = {
-                'global_alignment': str(files.global_alignment) if files.global_alignment else None,
-                'local_alignment': str(files.local_alignment) if files.local_alignment else None,
-                'lcs_alignment': str(files.lcs_alignment) if files.lcs_alignment else None,
-                'lcs': str(files.lcs) if files.lcs else None,
-                'global_dp': str(files.global_dp_bin or files.global_dp_txt) if (
-                            files.global_dp_bin or files.global_dp_txt) else None,
-                'local_dp': str(files.local_dp_bin or files.local_dp_txt) if (
-                            files.local_dp_bin or files.local_dp_txt) else None,
-                'lcs_dp': str(files.lcs_dp_bin or files.lcs_dp_txt) if (files.lcs_dp_bin or files.lcs_dp_txt) else None,
+                "global_alignment": str(files.global_alignment)
+                if files.global_alignment
+                else None,
+                "local_alignment": str(files.local_alignment)
+                if files.local_alignment
+                else None,
+                "lcs_alignment": str(files.lcs_alignment)
+                if files.lcs_alignment
+                else None,
+                "lcs": str(files.lcs) if files.lcs else None,
+                "global_dp": str(files.global_dp_bin or files.global_dp_txt)
+                if (files.global_dp_bin or files.global_dp_txt)
+                else None,
+                "local_dp": str(files.local_dp_bin or files.local_dp_txt)
+                if (files.local_dp_bin or files.local_dp_txt)
+                else None,
+                "lcs_dp": str(files.lcs_dp_bin or files.lcs_dp_txt)
+                if (files.lcs_dp_bin or files.lcs_dp_txt)
+                else None,
             }
             summary_data = summary.build_summary_data(
                 input_files=input_files,
@@ -544,5 +632,5 @@ def main(argv: Optional[List[str]] = None) -> int:
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -48,10 +48,10 @@ def infer_shape(seq_a_len: int, seq_b_len: int) -> Tuple[int, int]:
 
 
 def load_dp_matrix(
-        bin_path: Optional[Path],
-        txt_path: Optional[Path],
-        shape: Tuple[int, int],
-        dtype: str = "float64",
+    bin_path: Optional[Path],
+    txt_path: Optional[Path],
+    shape: Tuple[int, int],
+    dtype: str = "float64",
 ) -> np.ndarray:
     """
     Load a DP matrix from binary or text representation with support for int32 headers.
@@ -90,9 +90,7 @@ def load_dp_matrix(
                     expected_bytes = 8 + rows * cols * 4
 
                     if expected_bytes == file_size:
-                        logger.info(
-                            "Detected int32 header: shape=(%d, %d)", rows, cols
-                        )
+                        logger.info("Detected int32 header: shape=(%d, %d)", rows, cols)
 
                         return np.memmap(
                             bin_path,
@@ -151,7 +149,8 @@ def load_dp_matrix(
         # --------------------------------------------------
         logger.error(
             "Failed to infer binary DP matrix format for %s (file size: %d bytes)",
-            bin_path, file_size
+            bin_path,
+            file_size,
         )
         raise ValueError(f"Unsupported or inconsistent DP matrix format: {bin_path}")
 
@@ -166,7 +165,8 @@ def load_dp_matrix(
         if data.shape != shape:
             logger.warning(
                 "Text matrix shape %s does not match expected %s — using text shape",
-                data.shape, shape
+                data.shape,
+                shape,
             )
 
         return data
@@ -193,6 +193,4 @@ def validate_matrix_shape(matrix: np.ndarray, shape: Tuple[int, int]) -> None:
         If the matrix shape does not match the expected shape.
     """
     if matrix.shape != shape:
-        raise ValueError(
-            f"Matrix shape mismatch: expected {shape}, got {matrix.shape}"
-        )
+        raise ValueError(f"Matrix shape mismatch: expected {shape}, got {matrix.shape}")

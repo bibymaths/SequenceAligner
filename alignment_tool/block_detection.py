@@ -9,7 +9,7 @@ using simple parameters, writing results to TSV if required.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def detect_blocks_to_df(
-        seq_a: str,
-        seq_b: str,
-        a_map: List[Optional[int]],
-        b_map: List[Optional[int]],
-        substitution_matrix: Dict[str, Dict[str, int]],
-        min_block_length: int,
-        identity_threshold: float,
-        similarity_threshold: float,
+    seq_a: str,
+    seq_b: str,
+    a_map: List[Optional[int]],
+    b_map: List[Optional[int]],
+    substitution_matrix: Dict[str, Dict[str, int]],
+    min_block_length: int,
+    identity_threshold: float,
+    similarity_threshold: float,
 ) -> pd.DataFrame:
     """Detect conserved blocks and return a DataFrame of results.
 

@@ -10,8 +10,9 @@ reporting and plotting.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -45,28 +46,44 @@ def assign_participation_categories(df: pd.DataFrame) -> pd.Series:
     pandas.Series
         Categorical series with the category for each residue index.
     """
-    categories = []
-    for _, row in df.iterrows():
-        g = bool(row.get("global_participates", False))
-        l = bool(row.get("local_participates", False))
-        s = bool(row.get("lcs_participates", False))
-        if g and not l and not s:
-            categories.append("global_only")
-        elif not g and l and not s:
-            categories.append("local_only")
-        elif not g and not l and s:
-            categories.append("lcs_only")
-        elif g and l and not s:
-            categories.append("global_local_shared")
-        elif g and not l and s:
-            categories.append("global_lcs_shared")
-        elif not g and l and s:
-            categories.append("local_lcs_shared")
-        elif g and l and s:
-            categories.append("all_shared")
-        else:
-            categories.append("none")
-    return pd.Series(categories, index=df.index, name="category")
+    is_global = df.get("global_participates", pd.Series(False, index=df.index)).astype(
+        bool
+    )
+    is_local = df.get("local_participates", pd.Series(False, index=df.index)).astype(
+        bool
+    )
+    is_lcs = df.get("lcs_participates", pd.Series(False, index=df.index)).astype(bool)
+
+    conditions = [
+        (is_global & ~is_local & ~is_lcs),  # global_only
+        (~is_global & is_local & ~is_lcs),  # local_only
+        (~is_global & ~is_local & is_lcs),  # lcs_only
+        (is_global & is_local & ~is_lcs),  # global_local_shared
+        (is_global & ~is_local & is_lcs),  # global_lcs_shared
+        (~is_global & is_local & is_lcs),  # local_lcs_shared
+        (is_global & is_local & is_lcs),  # all_shared
+    ]
+
+    choices = [
+        "global_only",
+        "local_only",
+        "lcs_only",
+        "global_local_shared",
+        "global_lcs_shared",
+        "local_lcs_shared",
+        "all_shared",
+    ]
+
+    # 3. Use np.select to assign values based on conditions.
+    # The 'default' handles the 'none' (False, False, False) case.
+    res = np.select(conditions, choices, default="none")
+
+    # 4. Return as a Series with a Categorical dtype for memory efficiency
+    return pd.Series(
+        pd.Categorical(res, categories=choices + ["none"]),
+        index=df.index,
+        name="category",
+    )
 
 
 def summarise_category_segments(category_series: pd.Series) -> pd.DataFrame:
@@ -97,21 +114,25 @@ def summarise_category_segments(category_series: pd.Series) -> pd.DataFrame:
             start_idx = idx
         elif cat != current_category:
             # close previous segment
-            segments.append({
-                "start": start_idx,
-                "end": idx - 1,
-                "category": current_category,
-                "length": (idx - 1) - start_idx + 1,
-            })
+            segments.append(
+                {
+                    "start": start_idx,
+                    "end": idx - 1,
+                    "category": current_category,
+                    "length": (idx - 1) - start_idx + 1,
+                }
+            )
             current_category = cat
             start_idx = idx
     # close final segment
     if current_category is not None and start_idx is not None:
         end_idx = category_series.index[-1]
-        segments.append({
-            "start": start_idx,
-            "end": end_idx,
-            "category": current_category,
-            "length": end_idx - start_idx + 1,
-        })
+        segments.append(
+            {
+                "start": start_idx,
+                "end": end_idx,
+                "category": current_category,
+                "length": end_idx - start_idx + 1,
+            }
+        )
     return pd.DataFrame(segments)

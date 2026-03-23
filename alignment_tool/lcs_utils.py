@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 def load_lcs_dp_lengths(
-        bin_path: Optional[Path], txt_path: Optional[Path], shape: Tuple[int, int], dtype: str = "int32"
+    bin_path: Optional[Path],
+    txt_path: Optional[Path],
+    shape: Tuple[int, int],
+    dtype: str = "int32",
 ) -> np.ndarray:
     """Load the DP matrix of LCS lengths.
 
@@ -65,8 +68,8 @@ def load_traceback_pointers(path: Path, shape: Tuple[int, int]) -> np.ndarray:
         strings.
     """
     rows, cols = shape
-    pointers = np.full(shape, '', dtype=object)
-    with path.open('r') as fh:
+    pointers = np.full(shape, "", dtype=object)
+    with path.open("r") as fh:
         for r, line in enumerate(fh):
             line = line.strip()
             if not line:
@@ -79,9 +82,9 @@ def load_traceback_pointers(path: Path, shape: Tuple[int, int]) -> np.ndarray:
 
 
 def traceback_lcs(
-        pointers: np.ndarray,
-        seq_a: str,
-        seq_b: str,
+    pointers: np.ndarray,
+    seq_a: str,
+    seq_b: str,
 ) -> List[Tuple[int, int]]:
     """Reconstruct the LCS path from a pointer matrix.
 
@@ -108,13 +111,15 @@ def traceback_lcs(
     i, j = len(seq_a), len(seq_b)
     path: List[Tuple[int, int]] = [(i, j)]
     while i > 0 or j > 0:
-        symbol = pointers[i, j] if (i < pointers.shape[0] and j < pointers.shape[1]) else ''
-        if symbol == 'D':
+        symbol = (
+            pointers[i, j] if (i < pointers.shape[0] and j < pointers.shape[1]) else ""
+        )
+        if symbol == "D":
             i -= 1
             j -= 1
-        elif symbol == 'U':
+        elif symbol == "U":
             i -= 1
-        elif symbol == 'L':
+        elif symbol == "L":
             j -= 1
         else:
             # fallback: prefer diagonal if both indices > 0

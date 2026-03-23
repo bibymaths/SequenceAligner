@@ -11,7 +11,7 @@ pandas DataFrame that can be saved to TSV or plotted.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 def compute_residue_support(
-        seq_len: int,
-        seq_str: str,
-        method_data: Dict[str, dict],
-        window: int = 2,
+    seq_len: int,
+    seq_str: str,
+    method_data: Dict[str, dict],
+    window: int = 2,
 ) -> pd.DataFrame:
     """Compute residue support profiles for a protein across alignment methods.
 
@@ -73,18 +73,20 @@ def compute_residue_support(
         ``<method>_strong_block``, ``<method>_gap_proximity``.
     """
     # Initialise DataFrame
-    df = pd.DataFrame({
-        'residue_index': list(range(seq_len)),
-        'residue': list(seq_str),
-    })
+    df = pd.DataFrame(
+        {
+            "residue_index": list(range(seq_len)),
+            "residue": list(seq_str),
+        }
+    )
 
     for method, data in method_data.items():
-        a_map: List[Optional[int]] = data.get('a_map')
-        b_map: List[Optional[int]] = data.get('b_map')
-        aligned_a: str = data.get('aligned_a', '')
-        aligned_b: str = data.get('aligned_b', '')
-        dp_matrix: Optional[np.ndarray] = data.get('dp_matrix')
-        blocks_df: Optional[pd.DataFrame] = data.get('blocks')
+        a_map: List[Optional[int]] = data.get("a_map")
+        b_map: List[Optional[int]] = data.get("b_map")
+        aligned_a: str = data.get("aligned_a", "")
+        aligned_b: str = data.get("aligned_b", "")
+        dp_matrix: Optional[np.ndarray] = data.get("dp_matrix")
+        blocks_df: Optional[pd.DataFrame] = data.get("blocks")
 
         participates = [False] * seq_len
         partner_indices = [None] * seq_len
@@ -112,8 +114,16 @@ def compute_residue_support(
                 # dp score: mapping to DP cell (i+1, j+1) since DP includes zero row/col
                 if dp_matrix is not None:
                     i_dp = res_idx + 1
-                    j_dp = (partner_indices[res_idx] + 1) if partner_indices[res_idx] is not None else None
-                    if j_dp is not None and i_dp < dp_matrix.shape[0] and j_dp < dp_matrix.shape[1]:
+                    j_dp = (
+                        (partner_indices[res_idx] + 1)
+                        if partner_indices[res_idx] is not None
+                        else None
+                    )
+                    if (
+                        j_dp is not None
+                        and i_dp < dp_matrix.shape[0]
+                        and j_dp < dp_matrix.shape[1]
+                    ):
                         dp_scores[res_idx] = dp_matrix[i_dp, j_dp]
                 # local support: search neighbourhood around dp cell
                 if dp_matrix is not None:
@@ -138,10 +148,13 @@ def compute_residue_support(
                 if blocks_df is not None and not blocks_df.empty:
                     # check if residue index falls into any block range of seqA_range
                     for _, block in blocks_df.iterrows():
-                        if block.get('seqA_range') is not None:
-                            start, end = block['seqA_range']
+                        if block.get("seqA_range") is not None:
+                            start, end = block["seqA_range"]
                             # inclusive range in residue coordinates
-                            if start <= res_idx <= end and block['classification'] in ('high_identity', 'conservative'):
+                            if start <= res_idx <= end and block["classification"] in (
+                                "high_identity",
+                                "conservative",
+                            ):
                                 strong_block_flags[res_idx] = True
                                 break
                 # gap proximity
@@ -152,7 +165,7 @@ def compute_residue_support(
                         for offset in range(-window, window + 1):
                             col = aln_col + offset
                             if 0 <= col < len(aligned_a):
-                                if aligned_a[col] == '-' or aligned_b[col] == '-':
+                                if aligned_a[col] == "-" or aligned_b[col] == "-":
                                     gap_count += 1
                     gap_proximities[res_idx] = gap_count
         # assign columns to dataframe

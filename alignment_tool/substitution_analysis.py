@@ -12,7 +12,7 @@ or feed into higher level analyses.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Dict, List, Mapping, Optional
 
 import pandas as pd
 from Bio.Align import substitution_matrices
@@ -20,7 +20,9 @@ from Bio.Align import substitution_matrices
 logger = logging.getLogger(__name__)
 
 
-def load_substitution_matrix(name: str | None) -> Optional[Mapping[str, Mapping[str, float]]]:
+def load_substitution_matrix(
+    name: str | None,
+) -> Optional[Mapping[str, Mapping[str, float]]]:
     """Load a substitution matrix by name.
 
     Parameters
@@ -110,10 +112,10 @@ def classify_residue(residue: str) -> List[str]:
 
 
 def summarise_substitutions(
-        seq_a: str,
-        seq_b: str,
-        substitution_matrix: Optional[Mapping[str, Mapping[str, float]]],
-        similarity_threshold: float = 0.0,
+    seq_a: str,
+    seq_b: str,
+    substitution_matrix: Optional[Mapping[str, Mapping[str, float]]],
+    similarity_threshold: float = 0.0,
 ) -> pd.DataFrame:
     """Summarise substitution types and residue categories across an alignment.
 
@@ -176,7 +178,7 @@ def summarise_substitutions(
         },
     }
     for aa, bb in zip(seq_a.upper(), seq_b.upper()):
-        if aa == '-' or bb == '-':
+        if aa == "-" or bb == "-":
             counts["gap_pairs"] += 1
             continue
         if aa == bb:

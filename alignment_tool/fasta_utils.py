@@ -12,8 +12,6 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
-import pandas as pd
 from Bio import SeqIO
 
 logger = logging.getLogger(__name__)
@@ -40,7 +38,9 @@ def parse_alignment_fasta(path: Path) -> Dict[str, str]:
     for rec in records:
         seqs[str(rec.id)] = str(rec.seq).upper()
     if len(seqs) < 2:
-        logger.warning("Expected at least two sequences in %s, found %d", path, len(seqs))
+        logger.warning(
+            "Expected at least two sequences in %s, found %d", path, len(seqs)
+        )
     return seqs
 
 
@@ -61,10 +61,10 @@ def parse_ungapped_fasta(path: Path) -> Dict[str, str]:
 
 
 def compute_alignment_stats(
-        seq_a: str,
-        seq_b: str,
-        substitution_matrix: Optional[Dict[str, Dict[str, int]]] = None,
-        similarity_threshold: int = 0,
+    seq_a: str,
+    seq_b: str,
+    substitution_matrix: Optional[Dict[str, Dict[str, int]]] = None,
+    similarity_threshold: int = 0,
 ) -> Dict[str, float]:
     """Compute summary statistics for a pairwise alignment.
 
@@ -112,7 +112,7 @@ def compute_alignment_stats(
     gaps = 0
 
     for aa, bb in zip(seq_a, seq_b):
-        if aa == '-' or bb == '-':
+        if aa == "-" or bb == "-":
             gaps += 1
             continue
         if aa == bb:
@@ -131,10 +131,10 @@ def compute_alignment_stats(
                 mismatches += 1
 
     # compute percents
-    percent_identity = matches / aln_len if aln_len > 0 else float('nan')
-    percent_similarity = float('nan')
+    percent_identity = matches / aln_len if aln_len > 0 else float("nan")
+    percent_similarity = float("nan")
     if substitution_matrix is not None:
-        percent_similarity = similar / aln_len if aln_len > 0 else float('nan')
+        percent_similarity = similar / aln_len if aln_len > 0 else float("nan")
 
     return {
         "alignment_length": aln_len,
@@ -148,7 +148,9 @@ def compute_alignment_stats(
     }
 
 
-def build_coordinate_maps(seq_a: str, seq_b: str) -> Tuple[List[Optional[int]], List[Optional[int]]]:
+def build_coordinate_maps(
+    seq_a: str, seq_b: str
+) -> Tuple[List[Optional[int]], List[Optional[int]]]:
     """Generate coordinate maps from alignment positions to residue indices.
 
     Each element of the returned lists corresponds to an alignment
@@ -176,12 +178,12 @@ def build_coordinate_maps(seq_a: str, seq_b: str) -> Tuple[List[Optional[int]], 
     a_idx = 0
     b_idx = 0
     for aa, bb in zip(seq_a, seq_b):
-        if aa == '-':
+        if aa == "-":
             a_map.append(None)
         else:
             a_map.append(a_idx)
             a_idx += 1
-        if bb == '-':
+        if bb == "-":
             b_map.append(None)
         else:
             b_map.append(b_idx)
@@ -190,7 +192,7 @@ def build_coordinate_maps(seq_a: str, seq_b: str) -> Tuple[List[Optional[int]], 
 
 
 def extract_residue_pairs(
-        seq_a: str, seq_b: str, a_map: List[Optional[int]], b_map: List[Optional[int]]
+    seq_a: str, seq_b: str, a_map: List[Optional[int]], b_map: List[Optional[int]]
 ) -> List[Tuple[Optional[int], str, Optional[int], str]]:
     """Construct a list of residue pair information for each alignment column.
 
@@ -219,14 +221,14 @@ def extract_residue_pairs(
 
 
 def contiguous_blocks(
-        seq_a: str,
-        seq_b: str,
-        a_map: List[Optional[int]],
-        b_map: List[Optional[int]],
-        substitution_matrix: Dict[str, Dict[str, int]],
-        min_block_length: int = 5,
-        identity_threshold: float = 0.7,
-        similarity_threshold: float = 0.8,
+    seq_a: str,
+    seq_b: str,
+    a_map: List[Optional[int]],
+    b_map: List[Optional[int]],
+    substitution_matrix: Dict[str, Dict[str, int]],
+    min_block_length: int = 5,
+    identity_threshold: float = 0.7,
+    similarity_threshold: float = 0.8,
 ) -> List[Dict[str, object]]:
     """Detect contiguous conserved blocks in an alignment.
 
@@ -262,39 +264,57 @@ def contiguous_blocks(
     blocks: List[Dict[str, object]] = []
     current_start: Optional[int] = None
     for i, (aa, bb) in enumerate(zip(seq_a, seq_b)):
-        if aa != '-' and bb != '-':
+        if aa != "-" and bb != "-":
             if current_start is None:
                 current_start = i
         else:
             if current_start is not None:
                 end = i  # non-inclusive
                 if end - current_start >= min_block_length:
-                    blocks.append(_summarize_block(
-                        seq_a, seq_b, a_map, b_map, substitution_matrix,
-                        current_start, end, identity_threshold, similarity_threshold,
-                    ))
+                    blocks.append(
+                        _summarize_block(
+                            seq_a,
+                            seq_b,
+                            a_map,
+                            b_map,
+                            substitution_matrix,
+                            current_start,
+                            end,
+                            identity_threshold,
+                            similarity_threshold,
+                        )
+                    )
                 current_start = None
     # handle tail block
     if current_start is not None:
         end = len(seq_a)
         if end - current_start >= min_block_length:
-            blocks.append(_summarize_block(
-                seq_a, seq_b, a_map, b_map, substitution_matrix,
-                current_start, end, identity_threshold, similarity_threshold,
-            ))
+            blocks.append(
+                _summarize_block(
+                    seq_a,
+                    seq_b,
+                    a_map,
+                    b_map,
+                    substitution_matrix,
+                    current_start,
+                    end,
+                    identity_threshold,
+                    similarity_threshold,
+                )
+            )
     return blocks
 
 
 def _summarize_block(
-        seq_a: str,
-        seq_b: str,
-        a_map: List[Optional[int]],
-        b_map: List[Optional[int]],
-        substitution_matrix: Dict[str, Dict[str, int]],
-        start: int,
-        end: int,
-        identity_threshold: float,
-        similarity_threshold: float,
+    seq_a: str,
+    seq_b: str,
+    a_map: List[Optional[int]],
+    b_map: List[Optional[int]],
+    substitution_matrix: Dict[str, Dict[str, int]],
+    start: int,
+    end: int,
+    identity_threshold: float,
+    similarity_threshold: float,
 ) -> Dict[str, object]:
     """Compute statistics and classification for a contiguous block.
 
