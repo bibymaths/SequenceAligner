@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import shutil
 import sys
@@ -9,6 +10,7 @@ from .common import manager, update_status
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+logger = logging.getLogger("uvicorn")
 
 def _resolve_binary(binary_name: str) -> str:
     """
@@ -87,7 +89,7 @@ async def run_alignment(
     session_id = session_dir.name
     queue = manager.get_queue(session_id)
 
-    print(f"\n🚀 REAL BACKGROUND TASK STARTED FOR: {session_id}")
+    logger.info(f"\nSession started: {session_id}")
 
     try:
         await update_status(session_dir, status="running")
@@ -102,10 +104,8 @@ async def run_alignment(
             await update_status(session_dir, status="failed")
             return
 
-        q_size = query_path.stat().st_size
-        t_size = target_path.stat().st_size
-
-        use_seed = (q_size * t_size > 10**7) or (q_size > 10000) or (t_size > 10000)
+        requested_seed = params.get("use_seeded_alignment", False)
+        use_seed = bool(requested_seed)
 
         fmindex_path: Optional[Path] = None
 
@@ -184,7 +184,7 @@ async def run_alignment(
             seq_type,
             "--choice",
             cpp_choice,
-            "--verbose",
+            # "--verbose",
             "--txt",
             "--binary",
         ]
@@ -241,18 +241,20 @@ async def run_alignment(
 
             if rc != 0:
                 await queue.put(
-                    f"\n[error] Downstream analysis failed with exit code {rc}\n"
+                    f"\n[warning] Downstream analysis failed with exit code {rc}\n"
                 )
-                await update_status(session_dir, status="failed")
-                return
-
-            await queue.put("\n[info] Analysis complete\n")
+                await queue.put(
+                    "[warning] Alignment completed successfully, but comparative analysis was skipped.\n"
+                )
+            else:
+                await queue.put("\n[info] Analysis complete\n")
         else:
             await queue.put(
                 "\n[info] Single-method run detected; skipping comparative analysis\n"
             )
             await queue.put("[info] Alignment complete\n")
 
+        await queue.put("\n[info] Session completed successfully\n")
         await update_status(session_dir, status="completed")
 
     except Exception as e:

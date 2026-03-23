@@ -9,6 +9,7 @@ function DropZone({ onSessionCreated }) {
   // Alignment parameter states
   const [seqType, setSeqType] = useState('dna');
   const [alignMethod, setAlignMethod] = useState('global');
+  const [useSeededAlignment, setUseSeededAlignment] = useState(false);
 
   // UI states
   const [isUploading, setIsUploading] = useState(false);
@@ -27,7 +28,8 @@ function DropZone({ onSessionCreated }) {
     formData.append('query', queryFile);
     formData.append('target', targetFile);
     formData.append('seq_type', seqType);           // 'dna' or 'protein'
-    formData.append('align_method', alignMethod);   // 'global', 'local', etc.
+    formData.append('align_method', alignMethod);   // 'global', 'local', 'lcs', or 'all'
+    formData.append("use_seeded_alignment", useSeededAlignment ? "true" : "false");
 
     try {
       const response = await axios.post('http://127.0.0.1:8000/align', formData);
@@ -100,6 +102,18 @@ function DropZone({ onSessionCreated }) {
               <option value="all">Run All Three</option>
             </select>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="flex items-center gap-3 text-sm text-gray-700">
+            <input
+                type="checkbox"
+                checked={useSeededAlignment}
+                onChange={(e) => setUseSeededAlignment(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>Use seeded alignment + FM-index</span>
+          </label>
         </div>
 
         {/* Error Message */}

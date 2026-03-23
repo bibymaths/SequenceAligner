@@ -2420,15 +2420,18 @@ int main(int argc, char** argv) {
       }
       if (!fm_idx_path_for_target.empty()) {
         std::ifstream fm_ifs(fm_idx_path_for_target, std::ios::binary);
-        if (fm_ifs) {
+        if (!fm_ifs) {
+          std::cerr << "Rank 0: Error! Could not open FM-Index file: "
+                    << fm_idx_path_for_target << "\n";
+        } else {
           fm_index_target_obj_ptr = std::make_unique<FMIndex>();
           if (!fm_index_target_obj_ptr->load(fm_ifs)) {
             std::cerr << "Rank 0: Error! Failed to load FM-Index from "
                       << fm_idx_path_for_target << "\n";
             fm_index_target_obj_ptr.reset();
-          } else if (verbose) {
-            std::cout << "Rank 0: Loaded FM-Index for target from "
-                      << fm_idx_path_for_target << std::endl;
+          } else {
+            std::cout << "Rank 0: Loaded FM-Index from "
+                      << fm_idx_path_for_target << "\n";
           }
         }
       }

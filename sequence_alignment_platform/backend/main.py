@@ -94,7 +94,8 @@ async def align(
         query: UploadFile = File(...),
         target: UploadFile = File(...),
         align_method: str = Form("global"),
-        seq_type: str = Form("dna")
+        seq_type: str = Form("dna"),
+        use_seeded_alignment: bool = Form("false")
 ) -> SessionMetadata:
 
     if seq_type not in {"dna", "protein"}:
@@ -109,11 +110,30 @@ async def align(
     with open(target_path, "wb") as ft:
         shutil.copyfileobj(target.file, ft)
 
+    logger.info(f"Query file: {query_path}")
+    logger.info(f"Target file: {target_path}")
+    logger.info(f"Alignment method: {align_method}")
+    logger.info(f"Sequence type: {seq_type}")
+    logger.info(f"Use seeded alignment: {use_seeded_alignment}")
+    logger.info(f"Session directory: {session_dir}")
+    logger.info(f"Session ID: {session_dir.name}")
+    logger.info(f"Query filename: {query.filename}")
+    logger.info(f"Target filename: {target.filename}")
+    logger.info(f"Query file size: {query.file.seek(0, 2):,} bytes")
+    logger.info(f"Target file size: {target.file.seek(0, 2):,} bytes")
+    logger.info(f"Total file size: {query.file.seek(0, 2) + target.file.seek(0, 2):,} bytes")
+    logger.info(f"Session timestamp: {datetime.utcnow().isoformat()}")
+    logger.info(f"Session status: queued")
+
+    use_seeded_alignment_bool = use_seeded_alignment if isinstance(use_seeded_alignment, bool) else use_seeded_alignment.lower() == "true"
+
     # Save all parameters to pass to the runner
     params = {
         "align_method": align_method,
-        "seq_type": seq_type
+        "seq_type": seq_type,
+        "use_seeded_alignment": use_seeded_alignment_bool
     }
+    logger.info(f"Starting alignment with parameters: {params}")
     metadata = write_metadata(session_dir, query.filename, target.filename, params, status="queued")
 
     background_tasks.add_task(run_alignment, session_dir, query_path, target_path, params)
@@ -123,6 +143,7 @@ async def align(
 
 @app.get("/session/{session_id}")
 async def get_session_metadata(session_id: str) -> SessionMetadata:
+    logger.info(f"Fetching session metadata for session_id: {session_id}")
     meta_path = BASE_DATA_DIR / session_id / "metadata.json"
     if not meta_path.exists():
         raise HTTPException(status_code=404, detail="Session not found")
