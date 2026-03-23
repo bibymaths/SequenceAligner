@@ -32,12 +32,16 @@ function DropZone({ onSessionCreated }) {
     formData.append("use_seeded_alignment", useSeededAlignment ? "true" : "false");
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/align', formData);
+      const response = await axios.post(
+          `${window.location.origin}/align`,
+          formData
+      );
 
-      // Pass the ID up to App.js to switch the view to the Live Logs
       if (onSessionCreated) {
         onSessionCreated(response.data.session_id);
       }
+      console.log("Upload successful:", response.data);
+
     } catch (err) {
       console.error("Upload error:", err);
       setError(

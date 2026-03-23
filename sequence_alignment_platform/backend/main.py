@@ -28,23 +28,29 @@ app.add_middleware(
 
 logger = logging.getLogger("uvicorn")
 
-static_dir = Path(__file__).parent / "static"
+# React build output structure:
+# backend/static/index.html
+# backend/static/static/js/...
+# backend/static/static/css/...
+frontend_dir = Path(__file__).parent / "static"
+react_assets_dir = frontend_dir / "static"
 
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+if react_assets_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(react_assets_dir)), name="static")
+
 
 @app.get("/")
 async def serve_frontend():
     """Serve the React index.html at the root URL."""
-    index_file = static_dir / "index.html"
+    index_file = frontend_dir / "index.html"
     if index_file.exists():
         return FileResponse(index_file)
     return {"message": "Backend is running, but React index.html was not found."}
 
 
 class AlignmentRequest(BaseModel):
-    align_method: str = "global" # e.g., global, local, lcs
-    seq_type: str = "protein"        # dna or protein
+    align_method: str = "global"  # e.g., global, local, lcs
+    seq_type: str = "protein"     # dna or protein
 
 
 class SessionMetadata(BaseModel):
@@ -119,15 +125,27 @@ async def align(
     logger.info(f"Session ID: {session_dir.name}")
     logger.info(f"Query filename: {query.filename}")
     logger.info(f"Target filename: {target.filename}")
-    logger.info(f"Query file size: {query.file.seek(0, 2):,} bytes")
-    logger.info(f"Target file size: {target.file.seek(0, 2):,} bytes")
-    logger.info(f"Total file size: {query.file.seek(0, 2) + target.file.seek(0, 2):,} bytes")
+
+    query.file.seek(0, 2)
+    query_size = query.file.tell()
+    query.file.seek(0)
+
+    target.file.seek(0, 2)
+    target_size = target.file.tell()
+    target.file.seek(0)
+
+    logger.info(f"Query file size: {query_size:,} bytes")
+    logger.info(f"Target file size: {target_size:,} bytes")
+    logger.info(f"Total file size: {query_size + target_size:,} bytes")
     logger.info(f"Session timestamp: {datetime.utcnow().isoformat()}")
-    logger.info(f"Session status: queued")
+    logger.info("Session status: queued")
 
-    use_seeded_alignment_bool = use_seeded_alignment if isinstance(use_seeded_alignment, bool) else use_seeded_alignment.lower() == "true"
+    use_seeded_alignment_bool = (
+        use_seeded_alignment
+        if isinstance(use_seeded_alignment, bool)
+        else use_seeded_alignment.lower() == "true"
+    )
 
-    # Save all parameters to pass to the runner
     params = {
         "align_method": align_method,
         "seq_type": seq_type,

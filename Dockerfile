@@ -1,12 +1,9 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
-    gnuplot \
-    imagemagick \
-    jq \
     openmpi-bin \
     libopenmpi-dev \
     libdivsufsort-dev \
@@ -17,25 +14,26 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Copy full repo
 COPY . /app
 
-# Build C++ tools from repo root
+# Build C++ tools
 RUN mkdir -p /app/cpp_build && \
     cd /app/cpp_build && \
     cmake -DDOCKER_BUILD=ON .. && \
     make -j"$(nproc)"
 
-# Install Python project and dependencies from root pyproject.toml
+# Install Python project
 RUN python -m pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir /app
 
+# Build React frontend
 RUN cd /app/sequence_alignment_platform/frontend && \
     npm install && \
     npm run build
 
+# Copy build → backend/static
 RUN mkdir -p /app/sequence_alignment_platform/backend/static && \
-    cp -r /app/sequence_alignment_platform/frontend/build/* \
+    cp -r /app/sequence_alignment_platform/frontend/build/. \
           /app/sequence_alignment_platform/backend/static/
 
 EXPOSE 8000

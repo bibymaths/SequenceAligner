@@ -11,16 +11,55 @@ function App() {
     const [sessionId, setSessionId] = useState(null);
     const [status, setStatus] = useState("idle"); // idle | running | completed | failed
 
+    const resetRun = () => {
+        setSessionId(null);
+        setStatus("idle");
+    };
+
     useEffect(() => {
         if (!sessionId || status !== "running") return;
 
         const protocol = window.location.protocol === "https:" ? "wss" : "ws";
         const ws = new WebSocket(`${protocol}://${window.location.host}/ws/logs/${sessionId}`);
 
+        const pollStatus = async () => {
+            try {
+                const res = await fetch(`${window.location.origin}/session/${sessionId}`);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const s = (data.status || "").toLowerCase();
+
+                if (["completed", "complete", "finished", "success", "succeeded"].includes(s)) {
+                    setStatus("completed");
+                    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                        ws.close();
+                    }
+                    return;
+                }
+
+                if (["failed", "error"].includes(s)) {
+                    setStatus("failed");
+                    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                        ws.close();
+                    }
+                }
+            } catch (err) {
+                console.error("Status polling failed:", err);
+            }
+        };
+
+        const interval = setInterval(pollStatus, 2000);
+
+        ws.onopen = () => {
+            console.log("WebSocket connected");
+        };
+
         ws.onmessage = (event) => {
             const message = event.data.toLowerCase();
+            console.log("WS message:", message);
 
-            if (message.includes("[error]")) {
+            if (message.includes("[error]") || message.includes("failed")) {
                 setStatus("failed");
                 ws.close();
                 return;
@@ -28,29 +67,32 @@ function App() {
 
             if (
                 message.includes("analysis complete") ||
+                message.includes("analysis completed") ||
                 message.includes("alignment complete") ||
-                message.includes("pipeline finished successfully")
+                message.includes("alignment completed") ||
+                message.includes("pipeline finished successfully") ||
+                message.includes("pipeline completed") ||
+                message.includes("session completed successfully") ||
+                message.includes("completed successfully")
             ) {
                 setStatus("completed");
                 ws.close();
             }
         };
 
-        ws.onerror = () => {
-            setStatus("failed");
+        ws.onerror = (err) => {
+            console.error("WebSocket error:", err);
         };
 
+        pollStatus();
+
         return () => {
+            clearInterval(interval);
             if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
                 ws.close();
             }
         };
     }, [sessionId, status]);
-
-    const resetRun = () => {
-        setSessionId(null);
-        setStatus("idle");
-    };
 
     return (
         <QueryClientProvider client={queryClient}>
@@ -59,7 +101,6 @@ function App() {
                     Sequence Alignment Platform
                 </h1>
 
-                {/* Upload */}
                 {!sessionId && (
                     <DropZone
                         onSessionCreated={(id) => {
@@ -69,7 +110,6 @@ function App() {
                     />
                 )}
 
-                {/* Running State */}
                 {sessionId && status === "running" && (
                     <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 mt-4">
                         <div className="flex items-center gap-4">
@@ -86,7 +126,6 @@ function App() {
                     </div>
                 )}
 
-                {/* Failed */}
                 {sessionId && status === "failed" && (
                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm mt-6">
                         <p className="font-bold">Pipeline failed</p>
@@ -101,7 +140,6 @@ function App() {
                     </div>
                 )}
 
-                {/* Success */}
                 {sessionId && status === "completed" && (
                     <div className="space-y-8 mt-6">
                         <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-sm flex justify-between items-center">
