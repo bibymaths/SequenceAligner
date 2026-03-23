@@ -1,5 +1,25 @@
-FROM python:3.12-slim
+# ==========================================
+# STAGE 1: Build the React Frontend
+# ==========================================
+FROM node:20-slim AS frontend-builder
+WORKDIR /frontend
 
+# Copy only package.json first to leverage Docker caching for npm install
+COPY sequence_alignment_platform/frontend/package*.json ./
+RUN npm install
+
+# Copy the rest of the frontend source and build
+COPY sequence_alignment_platform/frontend/ ./
+RUN npm run build
+
+
+# ==========================================
+# STAGE 2: Build Backend & Final Image
+# ==========================================
+FROM python:3.12-slim
+WORKDIR /app
+
+# Install build dependencies (kept in final image due to C++ runtime requirements like openmpi)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -8,12 +28,9 @@ RUN apt-get update && \
     libopenmpi-dev \
     libdivsufsort-dev \
     git \
-    nodejs \
-    npm && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
+# Copy the entire backend and C++ source
 COPY . /app
 
 # Build C++ tools
@@ -23,18 +40,12 @@ RUN mkdir -p /app/cpp_build && \
     make -j"$(nproc)"
 
 # Install Python project
-RUN python -m pip install --upgrade pip setuptools wheel && \
+RUN pip install --upgrade pip && \
     pip install --no-cache-dir /app
 
-# Build React frontend
-RUN cd /app/sequence_alignment_platform/frontend && \
-    npm install && \
-    npm run build
-
-# Copy build → backend/static
-RUN mkdir -p /app/sequence_alignment_platform/backend/static && \
-    cp -r /app/sequence_alignment_platform/frontend/build/. \
-          /app/sequence_alignment_platform/backend/static/
+# Fetch the compiled React static files from STAGE 1
+RUN mkdir -p /app/sequence_alignment_platform/backend/static
+COPY --from=frontend-builder /frontend/build/ /app/sequence_alignment_platform/backend/static/
 
 EXPOSE 8000
 

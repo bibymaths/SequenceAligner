@@ -1,0 +1,24 @@
+# Ignore Node.js local files
+sequence_alignment_platform/frontend/node_modules/
+sequence_alignment_platform/frontend/build/
+sequence_alignment_platform/frontend/dist/
+
+# Ignore Python cache and environments
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Ignore C++ local build artifacts
+cpp_build/
+build/
+bin/
+*.fmidx
+
+# Ignore local run data/sessions so they don't get baked into the image
+data/sessions/
+
+# Git
+.git/
+.gitignore

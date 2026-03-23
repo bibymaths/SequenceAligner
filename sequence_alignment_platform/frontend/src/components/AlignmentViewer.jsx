@@ -17,7 +17,7 @@ const ROW_HEIGHT = 108;
 const METHODS = ["global", "local", "lcs"];
 
 const api = axios.create({
-    baseURL: "http://127.0.0.1:8000",
+    baseURL: window.location.origin,
 });
 
 function parseFasta(text) {

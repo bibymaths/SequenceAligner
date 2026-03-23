@@ -168,7 +168,7 @@ function ImageCard({ sessionId, filename, sessionLabel }) {
 
             <div className="p-4 flex items-center justify-center bg-gray-50">
                 <img
-                    src={`http://127.0.0.1:8000/session/${sessionId}/file/analysis_out/${filename}`}
+                    src={`/session/${sessionId}/file/analysis_out/${filename}`}
                     alt={filename}
                     className="w-full max-h-[420px] object-contain rounded-lg border border-gray-200 bg-white"
                     loading="lazy"
@@ -192,8 +192,7 @@ function AnalysisDashboard({ sessionId }) {
                 setLoading(true);
                 setError('');
 
-                const analysisRes = await axios.get(`http://127.0.0.1:8000/session/${sessionId}/analysis`);
-                const groupedFiles = analysisRes.data;
+                const analysisRes = await axios.get(`/session/${sessionId}/analysis`);                const groupedFiles = analysisRes.data;
                 setAnalysisData(groupedFiles);
 
                 const fetchedTables = {};
@@ -201,9 +200,9 @@ function AnalysisDashboard({ sessionId }) {
                 for (const group of Object.keys(groupedFiles)) {
                     const tsvFiles = groupedFiles[group]?.tsv || [];
                     for (const filename of tsvFiles) {
-                        const tableRes = await axios.get(
-                            `http://127.0.0.1:8000/session/${sessionId}/analysis/table/${filename}`
-                        );
+
+                        const tableRes = await axios.get(`/session/${sessionId}/analysis/table/${filename}`);
+
                         fetchedTables[filename] = tableRes.data.records || [];
                     }
                 }
