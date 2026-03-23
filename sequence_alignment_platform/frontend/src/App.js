@@ -30,7 +30,7 @@ function App() {
                 const data = await res.json();
                 const s = (data.status || "").toLowerCase();
 
-                if (["completed", "complete", "finished", "success", "succeeded"].includes(s)) {
+                if (s === "completed") {
                     setStatus("completed");
                     if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
                         ws.close();
@@ -38,7 +38,7 @@ function App() {
                     return;
                 }
 
-                if (["failed", "error"].includes(s)) {
+                if (s === "failed") {
                     setStatus("failed");
                     if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
                         ws.close();
@@ -65,15 +65,10 @@ function App() {
                 return;
             }
 
+            // Only finalize on the real terminal signal
             if (
-                message.includes("analysis complete") ||
-                message.includes("analysis completed") ||
-                message.includes("alignment complete") ||
-                message.includes("alignment completed") ||
-                message.includes("pipeline finished successfully") ||
-                message.includes("pipeline completed") ||
                 message.includes("session completed successfully") ||
-                message.includes("completed successfully")
+                message.includes("pipeline completed successfully")
             ) {
                 setStatus("completed");
                 ws.close();
