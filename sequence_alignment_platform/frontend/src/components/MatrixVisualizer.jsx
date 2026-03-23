@@ -223,7 +223,6 @@ export default function MatrixVisualizer({ sessionId }) {
     return () => { cancelled = true; };
   }, [sessionId, effectiveMethod]);
 
-  // 3. Render Canvas
   const drawMatrix = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !parsedMatrix) return;
@@ -231,9 +230,14 @@ export default function MatrixVisualizer({ sessionId }) {
     const ctx = canvas.getContext("2d");
     const { rows, cols, z } = parsedMatrix;
 
+    // 1. SURGICAL CHANGE: Force strict square aspect ratio
     const parent = canvas.parentElement;
-    canvas.width = parent.clientWidth;
-    canvas.height = isFullscreen ? window.innerHeight - 150 : 600;
+    const availableWidth = parent.clientWidth;
+    const availableHeight = isFullscreen ? window.innerHeight - 150 : 600;
+    const squareSize = Math.min(availableWidth, availableHeight);
+
+    canvas.width = squareSize;
+    canvas.height = squareSize;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -247,7 +251,7 @@ export default function MatrixVisualizer({ sessionId }) {
       }
     }
 
-    // A. Draw the score dots
+    // A. Draw the score dots (ROTATED 180)
     for (let i = 0; i < rows; i++) {
       for (let j = 0; j < cols; j++) {
         const val = z[i][j];
@@ -255,8 +259,12 @@ export default function MatrixVisualizer({ sessionId }) {
         if (effectiveMethod === "global" && val <= 0) continue;
         if (val === 0) continue;
 
-        const xPos = j * cellWidth + cellWidth / 2;
-        const yPos = i * cellHeight + cellHeight / 2;
+        // 2. SURGICAL CHANGE: Invert coordinates for 180-degree rotation
+        const invertedRow = rows - 1 - i;
+        const invertedCol = cols - 1 - j;
+
+        const xPos = invertedCol * cellWidth + cellWidth / 2;
+        const yPos = invertedRow * cellHeight + cellHeight / 2;
 
         const radius = Math.max(1.5, Math.min(cellWidth/2, cellHeight/2) * 0.8 * (Math.abs(val) / maxAbs + 0.3));
 
@@ -267,25 +275,25 @@ export default function MatrixVisualizer({ sessionId }) {
       }
     }
 
-    // B. OVERLAY THE ALIGNMENT PATH
+    // B. OVERLAY THE ALIGNMENT PATH (ROTATED 180)
     if (parsedPath && parsedPath.length > 0) {
       ctx.beginPath();
-
-      // Styling for the path line (Stark glowing white)
       ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.lineWidth = Math.max(2, Math.min(cellWidth, cellHeight) * 0.25); // Scale thickness with zoom
+      ctx.lineWidth = Math.max(2, Math.min(cellWidth, cellHeight) * 0.25);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-
-      // Add a cool neon glow effect to the line
       ctx.shadowBlur = 10;
       ctx.shadowColor = "rgba(255, 255, 255, 0.6)";
 
-      // Draw lines connecting the coordinate centers
       for (let k = 0; k < parsedPath.length; k++) {
         const pt = parsedPath[k];
-        const px = pt.c * cellWidth + cellWidth / 2;
-        const py = pt.r * cellHeight + cellHeight / 2;
+
+        // 3. SURGICAL CHANGE: Invert path coordinates
+        const invertedRow = rows - 1 - pt.r;
+        const invertedCol = cols - 1 - pt.c;
+
+        const px = invertedCol * cellWidth + cellWidth / 2;
+        const py = invertedRow * cellHeight + cellHeight / 2;
 
         if (k === 0) {
           ctx.moveTo(px, py);
@@ -293,9 +301,8 @@ export default function MatrixVisualizer({ sessionId }) {
           ctx.lineTo(px, py);
         }
       }
-
       ctx.stroke();
-      ctx.shadowBlur = 0; // Reset shadow so it doesn't affect future renders
+      ctx.shadowBlur = 0;
     }
 
   }, [parsedMatrix, parsedPath, effectiveMethod, isFullscreen]);

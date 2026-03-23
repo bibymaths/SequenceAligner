@@ -1,27 +1,23 @@
 import asyncio
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from .common import manager, update_status
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _resolve_binary(binary_name: str) -> str:
     """
-    Resolve aligner/seed_aligner to an absolute executable path.
-    Adjust candidate paths if your binaries live elsewhere.
+    Resolve an executable to an absolute path.
     """
-    # 1) If already on PATH, use it
     found = shutil.which(binary_name)
     if found:
         return found
 
-    # 2) Common local build locations under repo root
     candidates = [
         PROJECT_ROOT / binary_name,
         PROJECT_ROOT / "build" / binary_name,
@@ -74,6 +70,14 @@ async def _stream_process(
     return await process.wait()
 
 
+def _expected_fmindex_path(target_path: Path) -> Path:
+    """
+    Match the current C++ fmindex naming behavior:
+    output file = <target_path.stem>.fmidx in PROJECT_ROOT
+    """
+    return PROJECT_ROOT / f"{target_path.stem}.fmidx"
+
+
 async def run_alignment(
         session_dir: Path,
         query_path: Path,
@@ -88,9 +92,68 @@ async def run_alignment(
     try:
         await update_status(session_dir, status="running")
 
-        q_size = os.path.getsize(query_path)
-        t_size = os.path.getsize(target_path)
+        if not query_path.exists():
+            await queue.put(f"\n[error] Query file not found: {query_path}\n")
+            await update_status(session_dir, status="failed")
+            return
+
+        if not target_path.exists():
+            await queue.put(f"\n[error] Target file not found: {target_path}\n")
+            await update_status(session_dir, status="failed")
+            return
+
+        q_size = query_path.stat().st_size
+        t_size = target_path.stat().st_size
+
         use_seed = (q_size * t_size > 10**7) or (q_size > 10000) or (t_size > 10000)
+
+        fmindex_path: Optional[Path] = None
+
+        if use_seed:
+            fmindex_bin = _resolve_binary("fmindex")
+            fmindex_path = _expected_fmindex_path(target_path)
+
+            # Remove stale index so we do not accidentally reuse an old file
+            if fmindex_path.exists():
+                try:
+                    fmindex_path.unlink()
+                except OSError as e:
+                    await queue.put(
+                        f"\n[error] Could not remove stale FM-index {fmindex_path}: {e}\n"
+                    )
+                    await update_status(session_dir, status="failed")
+                    return
+
+            fmindex_cmd = [
+                fmindex_bin,
+                str(target_path),
+                "-s",
+                "$",
+            ]
+
+            rc = await _stream_process(
+                fmindex_cmd,
+                queue,
+                session_id,
+                cwd=PROJECT_ROOT,
+                step_name="fmindex_build",
+            )
+
+            if rc != 0:
+                await queue.put(
+                    f"\n[error] FM-Index generation failed with exit code {rc}\n"
+                )
+                await update_status(session_dir, status="failed")
+                return
+
+            if not fmindex_path.exists():
+                await queue.put(
+                    f"\n[error] Expected FM-index not found after build: {fmindex_path}\n"
+                )
+                await update_status(session_dir, status="failed")
+                return
+
+            await queue.put(f"[info] FM-index ready: {fmindex_path}\n")
 
         binary_name = "seed_aligner" if use_seed else "aligner"
         binary_path = _resolve_binary(binary_name)
@@ -101,18 +164,33 @@ async def run_alignment(
             "lcs": "3",
             "all": "4",
         }
-        cpp_choice = choice_map.get(params["align_method"], "1")
+        cpp_choice = choice_map.get(params.get("align_method", "global"), "1")
+
+        seq_type = params.get("seq_type", "dna")
+        if seq_type not in {"dna", "protein"}:
+            await queue.put(f"\n[error] Invalid seq_type: {seq_type}\n")
+            await update_status(session_dir, status="failed")
+            return
 
         align_cmd = [
             binary_path,
-            "--query", str(query_path),
-            "--target", str(target_path),
-            "--outdir", str(session_dir),
-            "--mode", params["seq_type"],
-            "--choice", cpp_choice,
+            "--query",
+            str(query_path),
+            "--target",
+            str(target_path),
+            "--outdir",
+            str(session_dir),
+            "--mode",
+            seq_type,
+            "--choice",
+            cpp_choice,
             "--verbose",
+            "--txt",
             "--binary",
         ]
+
+        if use_seed and fmindex_path is not None:
+            align_cmd.extend(["--fmindex", str(fmindex_path)])
 
         rc = await _stream_process(
             align_cmd,
@@ -133,17 +211,23 @@ async def run_alignment(
         py_env = os.environ.copy()
         py_env["PYTHONUNBUFFERED"] = "1"
 
-        # Only run comparative downstream analysis when "all" was selected.
-        if params["align_method"] == "all":
+        if params.get("align_method") == "all":
             analysis_cmd = [
-                sys.executable, "-u",
-                "-m", "alignment_tool.cli",
+                sys.executable,
+                "-u",
+                "-m",
+                "alignment_tool.cli",
                 "full",
-                "--results-dir", str(session_dir),
-                "--outdir", str(analysis_outdir),
-                "--prefix", session_id,
-                "--blosum", "blosum62",
-                "--plot-dpi", "200",
+                "--results-dir",
+                str(session_dir),
+                "--outdir",
+                str(analysis_outdir),
+                "--prefix",
+                session_id,
+                "--blosum",
+                "blosum62",
+                "--plot-dpi",
+                "200",
             ]
 
             rc = await _stream_process(
@@ -156,7 +240,9 @@ async def run_alignment(
             )
 
             if rc != 0:
-                await queue.put(f"\n[error] Downstream analysis failed with exit code {rc}\n")
+                await queue.put(
+                    f"\n[error] Downstream analysis failed with exit code {rc}\n"
+                )
                 await update_status(session_dir, status="failed")
                 return
 
@@ -171,6 +257,7 @@ async def run_alignment(
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         try:
             await queue.put(f"\n[error] Python backend crash: {e}\n")

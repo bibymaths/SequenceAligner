@@ -78,7 +78,7 @@ class FMIndex {
 
     // Build the BWT directly from that SA
     this->bwt.reserve(text_with_sentinel.length());
-    for (int i = 0; i < this->sa.size(); ++i) {
+    for (std::size_t i = 0; i < this->sa.size(); ++i) {
       if (this->sa[i] == 0) {
         this->bwt += text_with_sentinel.back();
       } else {
@@ -123,11 +123,11 @@ class FMIndex {
       }
     }
 
-    for (int i = 0; i < this->bwt.length(); ++i) {
+    for (std::size_t i = 0; i < this->bwt.length(); ++i) {
       char current_char_in_bwt = this->bwt[i];
       for (auto& pair : this->Occ) {
-        char c          = pair.first;
-        int  prev_count = pair.second.back();
+        char c = pair.first;
+        int prev_count = pair.second.back();
         pair.second.push_back(prev_count + (c == current_char_in_bwt ? 1 : 0));
       }
     }
@@ -135,30 +135,30 @@ class FMIndex {
 
   std::pair<int, int> backward_search(const std::string& pattern) const {
     int l = 0;
-    int r = bwt.length();
-    for (int i = pattern.length() - 1; i >= 0; --i) {
-      char ch     = pattern[i];
-      auto c_it   = C.find(ch);
+    int r = static_cast<int>(bwt.length());
+
+    for (std::size_t i = pattern.size(); i > 0; --i) {
+      char ch = pattern[i - 1];
+      auto c_it = C.find(ch);
       auto occ_it = Occ.find(ch);
 
       if (c_it == C.end() || occ_it == Occ.end()) {
-        return {0, 0};  // Character not in alphabet
+        return {0, 0};
       }
 
-      // Ensure l and r are valid indices for Occ table
-      if (l >= occ_it->second.size() || r >= occ_it->second.size()) {
-        // This case should ideally not happen if Occ is built correctly up to
-        // bwt.length()
-        return {0, 0};  // Index out of bounds
-      }
+      if (static_cast<std::size_t>(l) >= occ_it->second.size() ||
+          static_cast<std::size_t>(r) >= occ_it->second.size()) {
+        return {0, 0};
+          }
 
       l = c_it->second + occ_it->second[l];
       r = c_it->second + occ_it->second[r];
 
       if (l >= r) {
-        return {0, 0};  // Empty interval
+        return {0, 0};
       }
     }
+
     return {l, r};
   }
 
