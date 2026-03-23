@@ -43,8 +43,6 @@ async def serve_frontend():
 
 
 class AlignmentRequest(BaseModel):
-    gap_open: float = 10.0
-    gap_extend: float = 0.5
     align_method: str = "global" # e.g., global, local, lcs
     seq_type: str = "protein"        # dna or protein
 
@@ -95,8 +93,6 @@ async def align(
         background_tasks: BackgroundTasks,
         query: UploadFile = File(...),
         target: UploadFile = File(...),
-        gap_open: float = Form(10.0),        # Tell FastAPI to look in the FormData body!
-        gap_extend: float = Form(0.5),
         align_method: str = Form("global"),
         seq_type: str = Form("dna")
 ) -> SessionMetadata:
@@ -115,8 +111,6 @@ async def align(
 
     # Save all parameters to pass to the runner
     params = {
-        "gap_open": gap_open,
-        "gap_extend": gap_extend,
         "align_method": align_method,
         "seq_type": seq_type
     }

@@ -110,8 +110,6 @@ async def run_alignment(
             "--outdir", str(session_dir),
             "--mode", params["seq_type"],
             "--choice", cpp_choice,
-            "--gap_open", str(params["gap_open"]),
-            "--gap_extend", str(params["gap_extend"]),
             "--verbose",
             "--binary",
         ]

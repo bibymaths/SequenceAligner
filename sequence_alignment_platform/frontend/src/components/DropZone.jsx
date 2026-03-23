@@ -9,8 +9,6 @@ function DropZone({ onSessionCreated }) {
   // Alignment parameter states
   const [seqType, setSeqType] = useState('dna');
   const [alignMethod, setAlignMethod] = useState('global');
-  const [gapOpen, setGapOpen] = useState(10.0);
-  const [gapExtend, setGapExtend] = useState(0.5);
 
   // UI states
   const [isUploading, setIsUploading] = useState(false);
@@ -30,8 +28,6 @@ function DropZone({ onSessionCreated }) {
     formData.append('target', targetFile);
     formData.append('seq_type', seqType);           // 'dna' or 'protein'
     formData.append('align_method', alignMethod);   // 'global', 'local', etc.
-    formData.append('gap_open', gapOpen);
-    formData.append('gap_extend', gapExtend);
 
     try {
       const response = await axios.post('http://127.0.0.1:8000/align', formData);
@@ -103,28 +99,6 @@ function DropZone({ onSessionCreated }) {
               <option value="lcs">Longest Common Subsequence</option>
               <option value="all">Run All Three</option>
             </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Gap Open</label>
-            <input
-                type="number"
-                step="0.1"
-                value={gapOpen}
-                onChange={(e) => setGapOpen(parseFloat(e.target.value))}
-                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Gap Extend</label>
-            <input
-                type="number"
-                step="0.1"
-                value={gapExtend}
-                onChange={(e) => setGapExtend(parseFloat(e.target.value))}
-                className="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-            />
           </div>
         </div>
 
