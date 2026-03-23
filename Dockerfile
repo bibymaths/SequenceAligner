@@ -10,6 +10,7 @@ RUN apt-get update && \
     jq \
     openmpi-bin \
     libopenmpi-dev \
+    libdivsufsort-dev \
     git \
     nodejs \
     npm && \
@@ -18,12 +19,13 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Copy C++ sources and build
-COPY src/ /app/cpp_tools/
-# The CMakeLists.txt should compile aligner, seed_aligner and fmindex
+# Copy full project so CMakeLists.txt at repo root is included
+COPY . /app
+
+# Build C++ tools from repo root
 RUN mkdir -p /app/cpp_build && \
     cd /app/cpp_build && \
-    cmake ../cpp_tools && \
+    cmake -DDOCKER_BUILD=ON .. && \
     make -j$(nproc)
 
 # Copy Python backend

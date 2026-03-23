@@ -85,15 +85,18 @@ AddressSanitizer (ASan) and `libdivsufsort` requirements.
 
 ## 1. Install Libraries via Micromamba
 
-We use Micromamba to manage the `sdsl-lite` and `libdivsufsort` dependencies. This avoids manual compilation errors with
+We use Micromamba to manage the `libdivsufsort` and `libasan` dependencies. This avoids manual compilation errors with
 GCC 15.
 
 ```bash
 # 1. Install the SDSL and DivSufSort libraries
-mamba install -c conda-forge sdsl-lite libdivsufsort
+mamba install -c conda-forge libdivsufsort
 
 # 2. Identify your environment path for CLion
-echo $CONDA_PREFIX
+echo $CONDA_PREFIX 
+
+# 3. Install the ASan library on Fedora directly
+sudo dnf install libasan
 ````
 
 **Note:**
@@ -149,12 +152,6 @@ OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home
 ---
 
 # 🏁 Setup Verification Checklist
-
-* **[SDSL](https://anaconda.org/channels/conda-forge/packages/sdsl-lite/overview) Check:**
-
-  ```bash
-  ls /home/YOUR_USER/micromamba/lib/libsdsl.a
-  ```
 
 * **[DivSufSort](https://github.com/y-256/libdivsufsort) Check:**
 
