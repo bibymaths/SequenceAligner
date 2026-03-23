@@ -14,13 +14,10 @@ import asyncio
 import json
 import os
 import random
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 from typing import Dict
 
-from .main import manager, update_status
+from .common import manager, update_status
 
 
 async def run_alignment(session_dir: Path, query_path: Path, target_path: Path, params: Dict[str, float]) -> None:

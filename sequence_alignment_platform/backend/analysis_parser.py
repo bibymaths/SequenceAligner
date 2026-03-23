@@ -9,9 +9,8 @@ Python structures suitable for JSON responses.
 """
 
 import csv
-import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 def discover_analysis_outputs(analysis_dir: Path) -> Dict[str, Dict[str, List[str]]]:

@@ -14,17 +14,18 @@ perform actual sequence alignment – instead it simulates long‑running work.
 import asyncio
 import json
 import logging
-import os
 import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List
+
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+from .common import BASE_DATA_DIR, manager
 from .alignment_runner import run_alignment
 from .analysis_parser import discover_analysis_outputs, parse_tsv
 
@@ -35,6 +36,9 @@ BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger("uvicorn")
 
+@app.get("/")
+async def root():
+    return {"message": "Sequence Alignment API is up and running!"}
 
 class AlignmentRequest(BaseModel):
     gap_open: float = 10.0

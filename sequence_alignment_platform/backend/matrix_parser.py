@@ -14,31 +14,16 @@ falls back to Python's built‑in array module.
 """
 
 import math
-import os
 from pathlib import Path
 from typing import List, Tuple
-
-try:
-    import numpy as np  # type: ignore
-except ImportError:
-    np = None  # type: ignore
-
+import numpy as np
 
 def parse_bin_matrix(file_path: Path, shape: Tuple[int, int]) -> List[List[int]]:
     """Read a binary DP matrix file into a 2D list using the provided shape."""
-    if np:
-        data = np.fromfile(file_path, dtype=np.int32)
-        if data.size != shape[0] * shape[1]:
-            raise ValueError("Size mismatch for DP matrix")
-        return data.reshape(shape).tolist()
-    else:
-        import array
-        arr = array.array("i")
-        with open(file_path, "rb") as fh:
-            arr.fromfile(fh, shape[0] * shape[1])
-        matrix = [arr[i * shape[1] : (i + 1) * shape[1]] for i in range(shape[0])]
-        return matrix
-
+    data = np.fromfile(file_path, dtype=np.int32)
+    if data.size != shape[0] * shape[1]:
+        raise ValueError("Size mismatch for DP matrix")
+    return data.reshape(shape).tolist()
 
 def downsample_matrix(matrix: List[List[int]], max_dim: int = 1000) -> List[List[int]]:
     """Downsample a 2D list by selecting rows and columns at regular intervals."""
