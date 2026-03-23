@@ -14,7 +14,8 @@ function App() {
     useEffect(() => {
         if (!sessionId || status !== "running") return;
 
-        const ws = new WebSocket(`ws://127.0.0.1:8000/ws/logs/${sessionId}`);
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${protocol}://${window.location.host}/ws/logs/${sessionId}`);
 
         ws.onmessage = (event) => {
             const message = event.data.toLowerCase();
