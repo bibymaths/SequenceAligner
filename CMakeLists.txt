@@ -9,12 +9,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(MPI REQUIRED)
 
 if(APPLE)
-  message(STATUS "Detected macOS: setting OpenMP flags for Homebrew LLVM")
-  set(OpenMP_C_FLAGS "-fopenmp")
-  set(OpenMP_CXX_FLAGS "-fopenmp")
-  set(OpenMP_C_LIB_NAMES "omp")
+  message(STATUS "Detected macOS: setting OpenMP flags for Homebrew libomp")
+  set(OpenMP_C_FLAGS   "-Xpreprocessor -fopenmp")
+  set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
+  set(OpenMP_C_LIB_NAMES   "omp")
   set(OpenMP_CXX_LIB_NAMES "omp")
-  set(OpenMP_omp_LIBRARY "/usr/local/opt/llvm/lib/libomp.dylib")
+  # Resolve libomp path dynamically via brew — works on both Intel and Apple Silicon
+  execute_process(
+          COMMAND brew --prefix libomp
+          OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  set(OpenMP_omp_LIBRARY "${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib")
+  message(STATUS "libomp path: ${OpenMP_omp_LIBRARY}")
 endif()
 
 find_package(OpenMP REQUIRED)
@@ -26,6 +33,20 @@ function(configure_sequence_target target_name)
   target_include_directories(${target_name} PRIVATE
           ${MPI_CXX_INCLUDE_DIRS}
   )
+
+  if(APPLE)
+    execute_process(
+            COMMAND brew --prefix libomp
+            OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    target_include_directories(${target_name} PRIVATE
+            "${HOMEBREW_LIBOMP_PREFIX}/include"
+    )
+    target_link_directories(${target_name} PRIVATE
+            "${HOMEBREW_LIBOMP_PREFIX}/lib"
+    )
+  endif()
 
   target_link_libraries(${target_name} PRIVATE
           ${MPI_CXX_LIBRARIES}
@@ -46,11 +67,12 @@ function(configure_sequence_target target_name)
     target_compile_options(${target_name} PRIVATE -g -fno-omit-frame-pointer)
   endif()
 
-  if(COMPILER_SUPPORTS_AVX2)
+  # AVX2 + immintrin.h only on x86_64 — not available on ARM64
+  if(COMPILER_SUPPORTS_AVX2 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "arm|aarch64|ARM64")
     target_compile_options(${target_name} PRIVATE -mavx2 -march=native -funroll-loops -O3)
   else()
     target_compile_options(${target_name} PRIVATE -O3)
-    message(WARNING "Compiler does not support AVX2 for ${target_name}; using -O3 only.")
+    message(WARNING "Skipping AVX2 for ${target_name} (ARM or unsupported); using -O3 only.")
   endif()
 
   set_target_properties(${target_name} PROPERTIES

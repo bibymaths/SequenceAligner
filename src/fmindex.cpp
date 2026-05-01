@@ -132,35 +132,6 @@ class FMIndex {
     }
   }
 
-  std::pair<int, int> backward_search(const std::string& pattern) const {
-    int l = 0;
-    int r = static_cast<int>(bwt.length());
-
-    for (std::size_t i = pattern.size(); i > 0; --i) {
-      char ch     = pattern[i - 1];
-      auto c_it   = C.find(ch);
-      auto occ_it = Occ.find(ch);
-
-      if (c_it == C.end() || occ_it == Occ.end()) {
-        return {0, 0};
-      }
-
-      if (static_cast<std::size_t>(l) >= occ_it->second.size() ||
-          static_cast<std::size_t>(r) >= occ_it->second.size()) {
-        return {0, 0};
-      }
-
-      l = c_it->second + occ_it->second[l];
-      r = c_it->second + occ_it->second[r];
-
-      if (l >= r) {
-        return {0, 0};
-      }
-    }
-
-    return {l, r};
-  }
-
   // Serialization method (simple binary format)
   void save(std::ostream& os) const {
     // Write text_with_sentinel

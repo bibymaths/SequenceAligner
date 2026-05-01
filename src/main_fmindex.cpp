@@ -1,4 +1,3 @@
-#include <immintrin.h>
 #include <mpi.h>
 
 #include <algorithm>
@@ -262,37 +261,6 @@ class FMIndex {
     return positions;
   }
 
-  void save(std::ostream& os) const {
-    size_t len = text_with_sentinel.length();
-    os.write(reinterpret_cast<const char*>(&len), sizeof(len));
-    if (len > 0) os.write(text_with_sentinel.data(), len);
-    os.write(reinterpret_cast<const char*>(&sentinel_char),
-             sizeof(sentinel_char));
-    len = sa.size();
-    os.write(reinterpret_cast<const char*>(&len), sizeof(len));
-    if (len > 0)
-      os.write(reinterpret_cast<const char*>(sa.data()), len * sizeof(int));
-    len = bwt.length();
-    os.write(reinterpret_cast<const char*>(&len), sizeof(len));
-    if (len > 0) os.write(bwt.data(), len);
-    len = C.size();
-    os.write(reinterpret_cast<const char*>(&len), sizeof(len));
-    for (const auto& pair : C) {
-      os.write(reinterpret_cast<const char*>(&pair.first), sizeof(char));
-      os.write(reinterpret_cast<const char*>(&pair.second), sizeof(int));
-    }
-    len = Occ.size();
-    os.write(reinterpret_cast<const char*>(&len), sizeof(len));
-    for (const auto& pair : Occ) {
-      os.write(reinterpret_cast<const char*>(&pair.first), sizeof(char));
-      size_t vec_len = pair.second.size();
-      os.write(reinterpret_cast<const char*>(&vec_len), sizeof(vec_len));
-      if (vec_len > 0)
-        os.write(reinterpret_cast<const char*>(pair.second.data()),
-                 vec_len * sizeof(int));
-    }
-  }
-
   bool load(std::istream& is) {
     try {
       size_t len;
@@ -300,7 +268,7 @@ class FMIndex {
       if (!is || len > 2000000000) return false;
       text_with_sentinel.resize(len);
       if (len > 0) is.read(&text_with_sentinel[0], len);
-      is.read(reinterpret_cast<char*>(&sentinel_char), sizeof(sentinel_char));
+      is.read(&sentinel_char, sizeof(sentinel_char));
       is.read(reinterpret_cast<char*>(&len), sizeof(len));
       if (!is || len > 2000000000) return false;
       sa.resize(len);
@@ -732,14 +700,6 @@ void writeCharMatrix(const std::vector<std::vector<char>>& char_matrix,
   out_file.close();
 }
 
-// -------- Original DP Helper Functions --------
-struct AffineDPScores {
-  int  s_val = 0;
-  int  e_val = 0;
-  int  f_val = 0;
-  char ptr   = 'X';
-};
-
 void initAffineDP(int n_len, std::vector<int>& prev_row_s,
                   std::vector<int>& prev_row_e, std::vector<int>& prev_row_f,
                   bool isGlobal) {
@@ -842,12 +802,6 @@ void computeAffineDPRow(int i_row, const std::string& x_str,
     }
   }
 }
-
-struct Loc {
-  int score;
-  int i;
-  int j;
-};
 
 // -------- Seed Management --------
 struct Seed {
