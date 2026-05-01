@@ -17,68 +17,65 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: aligner-linux-x86_64
-            cmake_extra: ""
+            suffix: linux-x86_64
           - os: macos-latest
-            artifact: aligner-macos-arm64
-            cmake_extra: ""
-          - os: windows-latest
-            artifact: aligner-windows-x86_64.exe
-            cmake_extra: "-G Ninja"
+            suffix: macos-arm64
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ── Dependencies ──────────────────────────────────────────────────────
-      - name: Install MPI (Linux)
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin ninja-build
-
-      - name: Install MPI (macOS)
-        if: runner.os == 'macOS'
-        run: brew install open-mpi ninja
-
-      - name: Install MPI (Windows)
-        if: runner.os == 'Windows'
         run: |
-          choco install msmpi ninja --no-progress -y
-          echo "MSMPI_INC=C:\Program Files (x86)\Microsoft SDKs\MPI\Include" >> $env:GITHUB_ENV
-          echo "MSMPI_LIB64=C:\Program Files (x86)\Microsoft SDKs\MPI\Lib\x64" >> $env:GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y \
+            libopenmpi-dev openmpi-bin \
+            libomp-dev \
+            libdivsufsort-dev
 
-      # ── Configure & Build ─────────────────────────────────────────────────
-      - name: Configure CMake
-        run: >
-          cmake -S . -B build
-          -DCMAKE_BUILD_TYPE=Release
-          ${{ matrix.cmake_extra }}
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install open-mpi libomp libdivsufsort
+          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp" \
+            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="omp" \
+            -DOpenMP_CXX_LIB_NAMES="omp" \
+            -DOpenMP_omp_LIBRARY="$(brew --prefix libomp)/lib/libomp.dylib" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix libdivsufsort)"
 
       - name: Build
         run: cmake --build build --config Release --parallel
 
-      # ── Rename binary ─────────────────────────────────────────────────────
-      - name: Rename binary (Unix)
-        if: runner.os != 'Windows'
+      # Binaries land in CMAKE_SOURCE_DIR per your CMakeLists.txt
+      - name: Rename binaries
         run: |
-          BIN=$(find build -maxdepth 2 -type f -perm /111 ! -name "*.cmake" | head -1)
-          cp "$BIN" "${{ matrix.artifact }}"
+          cp aligner      aligner-${{ matrix.suffix }}
+          cp fmindex      fmindex-${{ matrix.suffix }}
+          cp seed_aligner seed_aligner-${{ matrix.suffix }}
 
-      - name: Rename binary (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $bin = Get-ChildItem -Path build -Recurse -Filter "*.exe" | Select-Object -First 1
-          Copy-Item $bin.FullName "${{ matrix.artifact }}"
-
-      # ── Upload artifact ───────────────────────────────────────────────────
-      - name: Upload build artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          name: binaries-${{ matrix.suffix }}
+          path: |
+            aligner-${{ matrix.suffix }}
+            fmindex-${{ matrix.suffix }}
+            seed_aligner-${{ matrix.suffix }}
 
-  # ── Attach all binaries to GitHub Release ──────────────────────────────
   release:
     name: Publish GitHub Release
     needs: build
@@ -94,4 +91,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: trues
+          generate_release_notes: true
