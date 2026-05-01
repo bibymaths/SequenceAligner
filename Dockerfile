@@ -26,7 +26,6 @@ RUN apt-get update && \
     cmake \
     openmpi-bin \
     libopenmpi-dev \
-    libdivsufsort-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
 

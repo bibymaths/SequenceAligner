@@ -79,32 +79,11 @@ For official documentation, see:
 # 🛠️ One-Time Library & Environment Setup
 
 Follow these steps to ensure all dependencies are installed and the system is configured to handle the
-AddressSanitizer (ASan) and `libdivsufsort` requirements.
+AddressSanitizer (ASan) requirements.
 
 ---
 
-## 1. Install Libraries via Micromamba
-
-We use Micromamba to manage the `libdivsufsort` and `libasan` dependencies. This avoids manual compilation errors with
-GCC 15.
-
-```bash
-# 1. Install the SDSL and DivSufSort libraries
-mamba install -c conda-forge libdivsufsort
-
-# 2. Identify your environment path for CLion
-echo $CONDA_PREFIX 
-
-# 3. Install the ASan library on Fedora directly
-sudo dnf install libasan
-````
-
-**Note:**
-The path returned (usually `/home/USER/micromamba`) is what you will use for the `CMAKE_PREFIX_PATH`.
-
----
-
-## 2. Configure CLion Settings
+## 1. Configure CLion Settings
 
 To make the libraries visible to your project, update the CMake settings in the CLion GUI:
 
@@ -122,7 +101,7 @@ Click **Apply**, then click the **Reload CMake Project** icon in the CMake tab.
 
 ---
 
-## 3. Fix the libasan Version Bridge
+## 2. Fix the libasan Version Bridge
 
 Fedora 41+ uses a newer version of AddressSanitizer. Since the project links against version 8, you must create a
 symbolic link (bridge):
@@ -135,7 +114,7 @@ sudo ln -sf $ACTUAL_ASAN /usr/lib64/libasan.so.8.0.0
 
 ---
 
-## 4. Mandatory Run Settings (Signal 4 Fix)
+## 3. Mandatory Run Settings (Signal 4 Fix)
 
 To prevent the **Illegal Instruction** crash caused by conflicts between OpenMPI and AddressSanitizer, add the following
 environment variables to every Run Configuration (`aligner` and `fmindex`):
@@ -152,12 +131,6 @@ OMPI_MCA_patcher=^overwrite;ASAN_OPTIONS=protect_shadow_gap=0;LIBRARY_PATH=/home
 ---
 
 # 🏁 Setup Verification Checklist
-
-* **[DivSufSort](https://github.com/y-256/libdivsufsort) Check:**
-
-  ```bash
-  ls /home/YOUR_USER/micromamba/lib/libdivsufsort.a
-  ```
 
 * **[ASan](https://gnu.googlesource.com/gcc/+/362cbc2d5f18c9f00dc3b945fb01c43bb0d36aae/libasan) Check:**
 
