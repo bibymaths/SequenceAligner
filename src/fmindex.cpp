@@ -3,7 +3,7 @@
 #include <fstream>  // For file operations
 #include <iostream>
 #include <map>
-#include <numeric>    // For std::iota
+#include <numeric>  // For std::iota
 #include <string>
 #include <vector>
 
@@ -311,8 +311,7 @@ int main(int argc, char* argv[]) {
   } else {
     file_stream.open(fasta_filepath);
     if (!file_stream.is_open()) {
-      std::cerr << "Error: Cannot open FASTA file: " << fasta_filepath
-                << '\n';
+      std::cerr << "Error: Cannot open FASTA file: " << fasta_filepath << '\n';
       return 1;
     }
     input_stream = &file_stream;
@@ -397,8 +396,7 @@ int main(int argc, char* argv[]) {
 
     std::ofstream outfile(fname, std::ios::binary);
     if (!outfile) {
-      std::cerr << "Error: Could not open " << fname << " for writing."
-                << '\n';
+      std::cerr << "Error: Could not open " << fname << " for writing." << '\n';
     } else {
       idx.save(outfile);
       outfile.close();

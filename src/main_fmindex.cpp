@@ -1,11 +1,12 @@
 #include <immintrin.h>
 #include <mpi.h>
-#include <omp.h>
-#include <cstdint>
+
+
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <climits>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
