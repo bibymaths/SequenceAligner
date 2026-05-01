@@ -1,7 +1,7 @@
 #include <immintrin.h>
 #include <mpi.h>
 #include <omp.h>
-
+#include <cstdint>
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -101,7 +101,7 @@ bool binary  = false;
 bool txt     = false;
 int  rank_val;  // Re-named to avoid conflict
 
-enum ScoreMode { MODE_DNA, MODE_PROTEIN };
+enum ScoreMode : std::uint8_t { MODE_DNA, MODE_PROTEIN };
 using ScoreFn = int (*)(char, char);
 
 double           GAP_OPEN   = -5.0;
@@ -339,11 +339,11 @@ class FMIndex {
       }
     } catch (const std::ios_base::failure& e) {
       if (verbose && rank_val == 0)
-        std::cerr << "FMIndex load I/O exception: " << e.what() << std::endl;
+        std::cerr << "FMIndex load I/O exception: " << e.what() << '\n';
       return false;
     } catch (const std::bad_alloc& e) {
       if (verbose && rank_val == 0)
-        std::cerr << "FMIndex load memory exception: " << e.what() << std::endl;
+        std::cerr << "FMIndex load memory exception: " << e.what() << '\n';
       return false;
     }
     return is.good() && !is.eof();
@@ -470,7 +470,7 @@ void showProgressBar(int progress, int total) {
             << " | ETA: " << format_hms_func(eta_s) << "   ";
   std::cout << std::flush;
   if (progress == total) {
-    std::cout << std::endl;
+    std::cout << '\n';
     start_time = steady_clock::now();
   }
 }
@@ -2402,7 +2402,7 @@ int main(int argc, char** argv) {
         std::filesystem::create_directories(output_dir);
       } catch (const std::exception& e) {
         std::cerr << "Error creating output dir " << output_dir << ": "
-                  << e.what() << std::endl;
+                  << e.what() << '\n';
         MPI_Abort(MPI_COMM_WORLD, 1);
         return 1;
       }
@@ -2414,7 +2414,7 @@ int main(int argc, char** argv) {
         processFasta(query_file, h1_data, seq1_data);
         processFasta(target_file, h2_data, seq2_data);
       } catch (const std::runtime_error& e) {
-        std::cerr << "FASTA error: " << e.what() << std::endl;
+        std::cerr << "FASTA error: " << e.what() << '\n';
         MPI_Abort(MPI_COMM_WORLD, 1);
         return 1;
       }

@@ -4,7 +4,6 @@
 #include <iostream>
 #include <map>
 #include <numeric>    // For std::iota
-#include <stdexcept>  // For std::runtime_error
 #include <string>
 #include <vector>
 
@@ -126,8 +125,8 @@ class FMIndex {
     for (std::size_t i = 0; i < this->bwt.length(); ++i) {
       char current_char_in_bwt = this->bwt[i];
       for (auto& pair : this->Occ) {
-        char c = pair.first;
-        int prev_count = pair.second.back();
+        char c          = pair.first;
+        int  prev_count = pair.second.back();
         pair.second.push_back(prev_count + (c == current_char_in_bwt ? 1 : 0));
       }
     }
@@ -138,8 +137,8 @@ class FMIndex {
     int r = static_cast<int>(bwt.length());
 
     for (std::size_t i = pattern.size(); i > 0; --i) {
-      char ch = pattern[i - 1];
-      auto c_it = C.find(ch);
+      char ch     = pattern[i - 1];
+      auto c_it   = C.find(ch);
       auto occ_it = Occ.find(ch);
 
       if (c_it == C.end() || occ_it == Occ.end()) {
@@ -149,7 +148,7 @@ class FMIndex {
       if (static_cast<std::size_t>(l) >= occ_it->second.size() ||
           static_cast<std::size_t>(r) >= occ_it->second.size()) {
         return {0, 0};
-          }
+      }
 
       l = c_it->second + occ_it->second[l];
       r = c_it->second + occ_it->second[r];
@@ -282,7 +281,7 @@ bool read_fasta_sequence(std::istream& in, std::string& header,
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " <fasta_file_or_-> [-s SENTINEL_CHAR]"
-              << std::endl;
+              << '\n';
     return 1;
   }
 
@@ -293,13 +292,13 @@ int main(int argc, char* argv[]) {
     std::string arg = argv[i];
     if (arg == "-s" && i + 1 < argc) {
       if (std::string(argv[i + 1]).length() != 1) {
-        std::cerr << "Error: Sentinel must be a single character." << std::endl;
+        std::cerr << "Error: Sentinel must be a single character." << '\n';
         return 1;
       }
       sentinel_char = argv[i + 1][0];
       i++;  // Consume sentinel value
     } else {
-      std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
+      std::cerr << "Warning: Unknown argument '" << arg << "'" << '\n';
     }
   }
 
@@ -308,16 +307,16 @@ int main(int argc, char* argv[]) {
 
   if (fasta_filepath == "-") {
     input_stream = &std::cin;
-    std::cerr << "Reading FASTA from stdin..." << std::endl;
+    std::cerr << "Reading FASTA from stdin..." << '\n';
   } else {
     file_stream.open(fasta_filepath);
     if (!file_stream.is_open()) {
       std::cerr << "Error: Cannot open FASTA file: " << fasta_filepath
-                << std::endl;
+                << '\n';
       return 1;
     }
     input_stream = &file_stream;
-    std::cerr << "Reading FASTA from " << fasta_filepath << "..." << std::endl;
+    std::cerr << "Reading FASTA from " << fasta_filepath << "..." << '\n';
   }
 
   std::string current_header;
@@ -344,7 +343,7 @@ int main(int argc, char* argv[]) {
         std::ofstream outfile(fname, std::ios::binary);
         if (!outfile) {
           std::cerr << "Error: Could not open " << fname << " for writing."
-                    << std::endl;
+                    << '\n';
         } else {
           idx.save(outfile);
           outfile.close();
@@ -358,7 +357,7 @@ int main(int argc, char* argv[]) {
           std::cerr << "'" << pair.first << "': " << pair.second;
           first_c = false;
         }
-        std::cerr << "}  (saved -> " << fname << ")" << std::endl;
+        std::cerr << "}  (saved -> " << fname << ")" << '\n';
       }
       // Start new sequence
       current_header = line.substr(1);
@@ -399,7 +398,7 @@ int main(int argc, char* argv[]) {
     std::ofstream outfile(fname, std::ios::binary);
     if (!outfile) {
       std::cerr << "Error: Could not open " << fname << " for writing."
-                << std::endl;
+                << '\n';
     } else {
       idx.save(outfile);
       outfile.close();
@@ -413,7 +412,7 @@ int main(int argc, char* argv[]) {
       std::cerr << "'" << pair.first << "': " << pair.second;
       first_c = false;
     }
-    std::cerr << "}  (saved -> " << fname << ")" << std::endl;
+    std::cerr << "}  (saved -> " << fname << ")" << '\n';
   }
 
   if (fasta_filepath != "-") {

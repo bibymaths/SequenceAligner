@@ -12,7 +12,7 @@
 #include <immintrin.h>
 #include <mpi.h>
 #include <omp.h>
-
+#include <cstdint>
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -34,7 +34,7 @@ bool verbose = false;
 bool binary  = false;
 bool txt     = false;
 using namespace std;
-enum ScoreMode { MODE_DNA, MODE_PROTEIN };
+enum ScoreMode : std::uint8_t { MODE_DNA, MODE_PROTEIN };
 using ScoreFn = int (*)(char, char);
 
 /// Gap penalty
@@ -1590,7 +1590,7 @@ void lcs(
       if (i % 100 == 0 || i == m) showProgressBar(i, m);
     }
   }
-  if (verbose && m > 0) std::cout << std::endl;  // Newline after progress bar
+  if (verbose && m > 0) std::cout << '\n';  // Newline after progress bar
 
   // --- Step 2: Traceback to reconstruct LCS string AND the gapped alignment
   // ---
