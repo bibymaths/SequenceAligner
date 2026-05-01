@@ -45,17 +45,7 @@ jobs:
         if: runner.os == 'Linux'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Configure CMake (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp" \
-            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="omp" \
-            -DOpenMP_CXX_LIB_NAMES="omp" \
-            -DOpenMP_omp_LIBRARY="$(brew --prefix libomp)/lib/libomp.dylib" \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix libdivsufsort)"
+
 
       - name: Build
         run: cmake --build build --config Release --parallel
