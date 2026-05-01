@@ -38,8 +38,14 @@ jobs:
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install open-mpi libomp libdivsufsort
-          echo "OpenMP_ROOT=$(brew --prefix libomp)" >> $GITHUB_ENV
+          brew install llvm libomp open-mpi libdivsufsort
+          LLVM_PREFIX="$(brew --prefix llvm)"
+          LIBOMP_PREFIX="$(brew --prefix libomp)"
+          echo "CC=${LLVM_PREFIX}/bin/clang"           >> $GITHUB_ENV
+          echo "CXX=${LLVM_PREFIX}/bin/clang++"        >> $GITHUB_ENV
+          echo "LDFLAGS=-L${LIBOMP_PREFIX}/lib"         >> $GITHUB_ENV
+          echo "CPPFLAGS=-I${LIBOMP_PREFIX}/include"    >> $GITHUB_ENV
+          echo "OpenMP_ROOT=${LIBOMP_PREFIX}"           >> $GITHUB_ENV
 
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
@@ -48,17 +54,14 @@ jobs:
       - name: Configure CMake (macOS)
         if: runner.os == 'macOS'
         run: |
-          LIBOMP="$(brew --prefix libomp)"
+          LLVM_PREFIX="$(brew --prefix llvm)"
+          LIBOMP_PREFIX="$(brew --prefix libomp)"
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
-            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
-            -DOpenMP_C_LIB_NAMES="omp" \
-            -DOpenMP_CXX_LIB_NAMES="omp" \
-            -DOpenMP_omp_LIBRARY="${LIBOMP}/lib/libomp.dylib" \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix libdivsufsort);${LIBOMP}" \
-            -DCMAKE_EXE_LINKER_FLAGS="-L${LIBOMP}/lib"
+            -DCMAKE_C_COMPILER="${LLVM_PREFIX}/bin/clang" \
+            -DCMAKE_CXX_COMPILER="${LLVM_PREFIX}/bin/clang++" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix libdivsufsort);${LIBOMP_PREFIX}" \
+            -DCMAKE_EXE_LINKER_FLAGS="-L${LIBOMP_PREFIX}/lib"
 
       - name: Build
         run: cmake --build build --config Release --parallel
