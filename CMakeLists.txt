@@ -51,8 +51,6 @@ function(configure_sequence_target target_name)
   target_link_libraries(${target_name} PRIVATE
           ${MPI_CXX_LIBRARIES}
           OpenMP::OpenMP_CXX
-          divsufsort
-          divsufsort64
           pthread
   )
 
