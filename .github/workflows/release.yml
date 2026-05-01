@@ -45,12 +45,24 @@ jobs:
         if: runner.os == 'Linux'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          LIBOMP="$(brew --prefix libomp)"
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
+            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP}/include" \
+            -DOpenMP_C_LIB_NAMES="omp" \
+            -DOpenMP_CXX_LIB_NAMES="omp" \
+            -DOpenMP_omp_LIBRARY="${LIBOMP}/lib/libomp.dylib" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix libdivsufsort);${LIBOMP}" \
+            -DCMAKE_EXE_LINKER_FLAGS="-L${LIBOMP}/lib"
 
       - name: Build
         run: cmake --build build --config Release --parallel
 
-      # Binaries land in CMAKE_SOURCE_DIR per your CMakeLists.txt
       - name: Rename binaries
         run: |
           cp aligner      aligner-${{ matrix.suffix }}

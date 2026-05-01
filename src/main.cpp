@@ -12,7 +12,6 @@
 
 #include <mpi.h>
 
-
 #include <algorithm>
 #include <array>
 #include <chrono>

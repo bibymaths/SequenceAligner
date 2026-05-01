@@ -1,7 +1,6 @@
 #include <immintrin.h>
 #include <mpi.h>
 
-
 #include <algorithm>
 #include <array>
 #include <chrono>
