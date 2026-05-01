@@ -8,6 +8,7 @@ from fastapi import WebSocket
 BASE_DATA_DIR = Path("data/sessions")
 BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+
 async def update_status(session_dir: Path, status: str) -> None:
     """Update the stored status in metadata.json for the session."""
     meta_path = session_dir / "metadata.json"
@@ -18,6 +19,7 @@ async def update_status(session_dir: Path, status: str) -> None:
     data["status"] = status
     with open(meta_path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2)
+
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -35,5 +37,6 @@ class ConnectionManager:
 
     def get_queue(self, session_id: str) -> asyncio.Queue:
         return self.log_queues.setdefault(session_id, asyncio.Queue())
+
 
 manager = ConnectionManager()

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 from typing import Dict, Optional
 
 from .. import utils
@@ -26,9 +25,9 @@ from ..parsers import msa_parser
 
 def _get_first_sequence_id(fasta_path: str) -> str:
     """Return the ID of the first sequence in a FASTA file."""
-    with open(fasta_path, 'r', encoding='utf-8') as handle:
+    with open(fasta_path, "r", encoding="utf-8") as handle:
         for line in handle:
-            if line.startswith('>'):
+            if line.startswith(">"):
                 return line[1:].split()[0]
     raise ValueError(f"No sequence found in {fasta_path}")
 
@@ -68,12 +67,12 @@ def run(
         Dictionary containing runtime, memory and alignment metrics, or
         ``None`` if MAFFT should not run or is unavailable.
     """
-    logger = logging.getLogger('mafft_runner')
-    if sequence_type != 'protein':
+    logger = logging.getLogger("mafft_runner")
+    if sequence_type != "protein":
         # MAFFT can align DNA, but we limit its use to proteins for fair comparison
         logger.warning("Skipping MAFFT for non-protein sequences")
         return None
-    if not utils.check_executable('mafft'):
+    if not utils.check_executable("mafft"):
         logger.error("mafft not found in PATH; skipping MAFFT run")
         return None
     # Read IDs and lengths
@@ -85,36 +84,44 @@ def run(
     target_len = target_lengths.get(target_id, 0)
     # Create combined FASTA
     combined_path = os.path.join(work_dir, f"mafft_input_{query_id}_{target_id}.fasta")
-    with open(query_path, 'r', encoding='utf-8') as qf, open(target_path, 'r', encoding='utf-8') as tf, open(combined_path, 'w', encoding='utf-8') as cf:
+    with (
+        open(query_path, "r", encoding="utf-8") as qf,
+        open(target_path, "r", encoding="utf-8") as tf,
+        open(combined_path, "w", encoding="utf-8") as cf,
+    ):
         cf.write(qf.read())
         if not qf.seekable():
             # Should not happen; just append newline
-            cf.write('\n')
+            cf.write("\n")
         cf.write(tf.read())
     # Prepare MAFFT command
-    cmd = ['mafft', '--auto']
+    cmd = ["mafft", "--auto"]
     if threads and threads > 1:
-        cmd += ['--thread', str(threads)]
+        cmd += ["--thread", str(threads)]
     cmd.append(combined_path)
     # Run MAFFT
-    runtime, memory, exit_code, stdout, stderr = utils.run_subprocess_with_resource_tracking(
-        cmd, timeout=timeout, capture_output=True
+    runtime, memory, exit_code, stdout, stderr = (
+        utils.run_subprocess_with_resource_tracking(
+            cmd, timeout=timeout, capture_output=True
+        )
     )
     # Write logs
-    with open(log_path, 'w', encoding='utf-8') as logf:
-        logf.write('Command: ' + ' '.join(cmd) + '\n')
-        logf.write('Exit code: ' + str(exit_code) + '\n')
-        logf.write('=== STDOUT ===\n')
-        logf.write(stdout + '\n')
-        logf.write('=== STDERR ===\n')
-        logf.write(stderr + '\n')
+    with open(log_path, "w", encoding="utf-8") as logf:
+        logf.write("Command: " + " ".join(cmd) + "\n")
+        logf.write("Exit code: " + str(exit_code) + "\n")
+        logf.write("=== STDOUT ===\n")
+        logf.write(stdout + "\n")
+        logf.write("=== STDERR ===\n")
+        logf.write(stderr + "\n")
     # Parse alignment
-    metrics = msa_parser.parse_aligned_fasta(stdout, query_id, target_id, query_len, target_len)
+    metrics = msa_parser.parse_aligned_fasta(
+        stdout, query_id, target_id, query_len, target_len
+    )
     return {
-        'tool': 'mafft',
-        'command': ' '.join(cmd),
-        'exit_code': exit_code,
-        'runtime': runtime,
-        'memory': memory,
-        'metrics': metrics,
+        "tool": "mafft",
+        "command": " ".join(cmd),
+        "exit_code": exit_code,
+        "runtime": runtime,
+        "memory": memory,
+        "metrics": metrics,
     }

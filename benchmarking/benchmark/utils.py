@@ -14,7 +14,6 @@ reported as ``None``.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import time
@@ -60,12 +59,12 @@ def read_fasta_lengths(path: str) -> Dict[str, int]:
     lengths: Dict[str, int] = {}
     current_id: Optional[str] = None
     current_len = 0
-    with open(path, 'r', encoding='utf-8') as handle:
+    with open(path, "r", encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line:
                 continue
-            if line.startswith('>'):
+            if line.startswith(">"):
                 # Save previous sequence length
                 if current_id is not None:
                     lengths[current_id] = current_len
@@ -142,7 +141,7 @@ def run_subprocess_with_resource_tracking(
         try:
             stdout, stderr = process.communicate(timeout=0)
         except subprocess.TimeoutExpired:
-            stdout, stderr = '', ''
+            stdout, stderr = "", ""
     except Exception:
         # Unexpected error, kill the process
         process.kill()
@@ -158,8 +157,8 @@ def run_subprocess_with_resource_tracking(
     # Convert memory to MB
     peak_mb: Optional[float] = peak_rss / (1024 * 1024) if peak_rss > 0 else None
     if not capture_output:
-        stdout = ''
-        stderr = ''
+        stdout = ""
+        stderr = ""
     return elapsed, peak_mb, exit_code, stdout, stderr
 
 
@@ -180,11 +179,11 @@ def aggregate_numbers(values: List[float]) -> Dict[str, float]:
     """
     if not values:
         return {
-            "mean": float('nan'),
-            "median": float('nan'),
-            "std": float('nan'),
-            "min": float('nan'),
-            "max": float('nan'),
+            "mean": float("nan"),
+            "median": float("nan"),
+            "std": float("nan"),
+            "min": float("nan"),
+            "max": float("nan"),
         }
     return {
         "mean": float(statistics.mean(values)),

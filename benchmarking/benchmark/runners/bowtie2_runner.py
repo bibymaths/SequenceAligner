@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 from typing import Dict, Optional
 
 from .. import utils
@@ -61,18 +60,22 @@ def run(
         Dictionary containing runtime, memory usage and alignment metrics,
         or ``None`` if Bowtie2 is unavailable or the sequence type is not DNA.
     """
-    logger = logging.getLogger('bowtie2_runner')
-    if sequence_type != 'dna':
+    logger = logging.getLogger("bowtie2_runner")
+    if sequence_type != "dna":
         logger.warning("Bowtie2 only supports DNA alignment; skipping run")
         return None
-    if not (utils.check_executable('bowtie2') and utils.check_executable('bowtie2-build')):
+    if not (
+        utils.check_executable("bowtie2") and utils.check_executable("bowtie2-build")
+    ):
         logger.error("bowtie2 or bowtie2-build not found in PATH; skipping Bowtie2 run")
         return None
     # Prepare index directory and prefix
     base_name = os.path.basename(target_path)
     index_prefix = os.path.join(work_dir, f"bowtie2_index_{base_name}")
     # Determine if index already exists
-    index_files = [f"{index_prefix}.{ext}.bt2" for ext in ['1', '2', '3', '4', 'rev.1', 'rev.2']]
+    index_files = [
+        f"{index_prefix}.{ext}.bt2" for ext in ["1", "2", "3", "4", "rev.1", "rev.2"]
+    ]
     index_exists = all(os.path.exists(f) for f in index_files)
     build_cmd = None
     build_runtime = 0.0
@@ -82,49 +85,56 @@ def run(
     build_stderr = ""
     if not index_exists:
         # Build index
-        build_cmd = ['bowtie2-build', target_path, index_prefix]
+        build_cmd = ["bowtie2-build", target_path, index_prefix]
         if threads and threads > 1:
-            build_cmd += ['--threads', str(threads)]
-        build_runtime, build_memory, build_exit, build_stdout, build_stderr = utils.run_subprocess_with_resource_tracking(
-            build_cmd, timeout=timeout, capture_output=True
+            build_cmd += ["--threads", str(threads)]
+        build_runtime, build_memory, build_exit, build_stdout, build_stderr = (
+            utils.run_subprocess_with_resource_tracking(
+                build_cmd, timeout=timeout, capture_output=True
+            )
         )
         # Write build log
-        with open(log_path, 'w', encoding='utf-8') as logf:
-            logf.write('Command: ' + ' '.join(build_cmd) + '\n')
-            logf.write('Exit code: ' + str(build_exit) + '\n')
-            logf.write('=== STDOUT (index build) ===\n')
-            logf.write(build_stdout + '\n')
-            logf.write('=== STDERR (index build) ===\n')
-            logf.write(build_stderr + '\n')
+        with open(log_path, "w", encoding="utf-8") as logf:
+            logf.write("Command: " + " ".join(build_cmd) + "\n")
+            logf.write("Exit code: " + str(build_exit) + "\n")
+            logf.write("=== STDOUT (index build) ===\n")
+            logf.write(build_stdout + "\n")
+            logf.write("=== STDERR (index build) ===\n")
+            logf.write(build_stderr + "\n")
     # Align reads
     # Bowtie2 expects reads; we treat query FASTA as unpaired reads with -f -U
     sam_file = os.path.join(work_dir, f"bowtie2_{base_name}.sam")
     align_cmd = [
-        'bowtie2',
-        '-x', index_prefix,
-        '-f',
-        '-U', query_path,
-        '-S', sam_file,
+        "bowtie2",
+        "-x",
+        index_prefix,
+        "-f",
+        "-U",
+        query_path,
+        "-S",
+        sam_file,
     ]
     if threads and threads > 1:
-        align_cmd += ['--threads', str(threads)]
-    align_runtime, align_memory, align_exit, align_stdout, align_stderr = utils.run_subprocess_with_resource_tracking(
-        align_cmd, timeout=timeout, capture_output=True
+        align_cmd += ["--threads", str(threads)]
+    align_runtime, align_memory, align_exit, align_stdout, align_stderr = (
+        utils.run_subprocess_with_resource_tracking(
+            align_cmd, timeout=timeout, capture_output=True
+        )
     )
     # Append alignment logs
-    with open(log_path, 'a', encoding='utf-8') as logf:
-        logf.write('Command: ' + ' '.join(align_cmd) + '\n')
-        logf.write('Exit code: ' + str(align_exit) + '\n')
-        logf.write('=== STDOUT (alignment) ===\n')
-        logf.write(align_stdout + '\n')
-        logf.write('=== STDERR (alignment) ===\n')
-        logf.write(align_stderr + '\n')
+    with open(log_path, "a", encoding="utf-8") as logf:
+        logf.write("Command: " + " ".join(align_cmd) + "\n")
+        logf.write("Exit code: " + str(align_exit) + "\n")
+        logf.write("=== STDOUT (alignment) ===\n")
+        logf.write(align_stdout + "\n")
+        logf.write("=== STDERR (alignment) ===\n")
+        logf.write(align_stderr + "\n")
     # Read SAM content
     try:
-        with open(sam_file, 'r', encoding='utf-8') as sf:
+        with open(sam_file, "r", encoding="utf-8") as sf:
             sam_content = sf.read()
     except FileNotFoundError:
-        sam_content = ''
+        sam_content = ""
     # Parse metrics
     query_lengths = utils.read_fasta_lengths(query_path)
     metrics = sam_parser.parse_sam(sam_content, query_lengths)
@@ -138,10 +148,12 @@ def run(
     else:
         peak_memory = align_memory
     return {
-        'tool': 'bowtie2',
-        'command': ' | '.join([' '.join(build_cmd) if build_cmd else '', ' '.join(align_cmd)]).strip(' |'),
-        'exit_code': align_exit,
-        'runtime': total_runtime,
-        'memory': peak_memory,
-        'metrics': metrics,
+        "tool": "bowtie2",
+        "command": " | ".join(
+            [" ".join(build_cmd) if build_cmd else "", " ".join(align_cmd)]
+        ).strip(" |"),
+        "exit_code": align_exit,
+        "runtime": total_runtime,
+        "memory": peak_memory,
+        "metrics": metrics,
     }

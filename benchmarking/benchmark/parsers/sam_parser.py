@@ -61,9 +61,9 @@ def parse_sam(
     """
     for line in content.splitlines():
         line = line.strip()
-        if not line or line.startswith('@'):
+        if not line or line.startswith("@"):
             continue
-        fields = line.split('\t')
+        fields = line.split("\t")
         if len(fields) < 11:
             # Malformed record
             continue
@@ -77,16 +77,16 @@ def parse_sam(
         cigar_ops = _parse_cigar(cigar)
         aligned_query_length = 0
         for op_code, count in cigar_ops.items():
-            if op_code in ('M', '=', 'X', 'I'):
+            if op_code in ("M", "=", "X", "I"):
                 aligned_query_length += count
         # Total gap events (insertions and deletions)
-        gap_events = cigar_ops.get('I', 0) + cigar_ops.get('D', 0)
+        gap_events = cigar_ops.get("I", 0) + cigar_ops.get("D", 0)
         # Extract NM tag (edit distance)
         nm_value: Optional[int] = None
         for field in fields[11:]:
-            if field.startswith('NM:i:'):
+            if field.startswith("NM:i:"):
                 try:
-                    nm_value = int(field.split(':', 2)[2])
+                    nm_value = int(field.split(":", 2)[2])
                 except ValueError:
                     nm_value = None
                 break
@@ -109,7 +109,9 @@ def parse_sam(
         # Return metrics for the first alignment
         return {
             "identity": identity,
-            "alignment_length": float(aligned_query_length) if aligned_query_length > 0 else None,
+            "alignment_length": float(aligned_query_length)
+            if aligned_query_length > 0
+            else None,
             "mismatches": float(mismatches) if mismatches is not None else None,
             "gap_count": float(gap_events),
             "query_coverage": query_cov,

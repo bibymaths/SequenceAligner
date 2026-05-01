@@ -16,7 +16,6 @@ sequence types by returning ``None``.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Dict, Optional
 
 from .. import utils
@@ -58,12 +57,12 @@ def run(
         BLAST is not installed or the sequence type is unsupported, returns
         ``None``.
     """
-    logger = logging.getLogger('blast_runner')
+    logger = logging.getLogger("blast_runner")
     # Determine which program to use
-    if sequence_type == 'dna':
-        prog = 'blastn'
-    elif sequence_type == 'protein':
-        prog = 'blastp'
+    if sequence_type == "dna":
+        prog = "blastn"
+    elif sequence_type == "protein":
+        prog = "blastp"
     else:
         logger.warning(f"BLAST does not support sequence type: {sequence_type}")
         return None
@@ -71,22 +70,24 @@ def run(
         logger.error(f"{prog} not found in PATH; skipping BLAST run")
         return None
     # Compose command. Use subject mode to avoid database creation.
-    cmd = [prog, '-query', query_path, '-subject', target_path, '-outfmt', '6']
+    cmd = [prog, "-query", query_path, "-subject", target_path, "-outfmt", "6"]
     # Use threads if supported
     if threads and threads > 1:
-        cmd += ['-num_threads', str(threads)]
+        cmd += ["-num_threads", str(threads)]
     logger.debug(f"Running BLAST command: {' '.join(cmd)}")
     # Execute command
-    elapsed, peak_mem, exit_code, stdout, stderr = utils.run_subprocess_with_resource_tracking(
-        cmd, timeout=timeout, capture_output=True
+    elapsed, peak_mem, exit_code, stdout, stderr = (
+        utils.run_subprocess_with_resource_tracking(
+            cmd, timeout=timeout, capture_output=True
+        )
     )
     # Write raw logs
-    with open(log_path, 'w', encoding='utf-8') as logf:
-        logf.write('Command: ' + ' '.join(cmd) + '\n')
-        logf.write('Exit code: ' + str(exit_code) + '\n')
-        logf.write('=== STDOUT ===\n')
+    with open(log_path, "w", encoding="utf-8") as logf:
+        logf.write("Command: " + " ".join(cmd) + "\n")
+        logf.write("Exit code: " + str(exit_code) + "\n")
+        logf.write("=== STDOUT ===\n")
         logf.write(stdout)
-        logf.write('\n=== STDERR ===\n')
+        logf.write("\n=== STDERR ===\n")
         logf.write(stderr)
     # Parse metrics
     # Precompute sequence lengths for coverage
@@ -94,10 +95,10 @@ def run(
     subject_lengths = utils.read_fasta_lengths(target_path)
     metrics = blast_parser.parse_blast_outfmt6(stdout, query_lengths, subject_lengths)
     return {
-        'tool': prog,
-        'command': ' '.join(cmd),
-        'exit_code': exit_code,
-        'runtime': elapsed,
-        'memory': peak_mem,
-        'metrics': metrics,
+        "tool": prog,
+        "command": " ".join(cmd),
+        "exit_code": exit_code,
+        "runtime": elapsed,
+        "memory": peak_mem,
+        "metrics": metrics,
     }

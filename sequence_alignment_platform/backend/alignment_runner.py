@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 logger = logging.getLogger("uvicorn")
 
+
 def _resolve_binary(binary_name: str) -> str:
     """
     Resolve an executable to an absolute path.
@@ -25,7 +26,7 @@ def _resolve_binary(binary_name: str) -> str:
         PROJECT_ROOT / "build" / binary_name,
         PROJECT_ROOT / "cpp_build" / binary_name,
         PROJECT_ROOT / "bin" / binary_name,
-        ]
+    ]
 
     for path in candidates:
         if path.exists() and os.access(path, os.X_OK):
@@ -39,13 +40,13 @@ def _resolve_binary(binary_name: str) -> str:
 
 
 async def _stream_process(
-        cmd: list[str],
-        queue: asyncio.Queue,
-        session_id: str,
-        *,
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-        step_name: str = "process",
+    cmd: list[str],
+    queue: asyncio.Queue,
+    session_id: str,
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+    step_name: str = "process",
 ) -> int:
     await queue.put(f"\n[info] Starting {step_name}\n")
     await queue.put(f"[info] CWD: {str(cwd or Path.cwd())}\n")
@@ -81,10 +82,10 @@ def _expected_fmindex_path(target_path: Path) -> Path:
 
 
 async def run_alignment(
-        session_dir: Path,
-        query_path: Path,
-        target_path: Path,
-        params: Dict[str, Any],
+    session_dir: Path,
+    query_path: Path,
+    target_path: Path,
+    params: Dict[str, Any],
 ) -> None:
     session_id = session_dir.name
     queue = manager.get_queue(session_id)

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  # ── Python: Ruff lint + format ────────────────────────────────────────────
+  python-lint:
+    name: Python — ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Lint
+        run: ruff check . --output-format=github
+
+  # ── C++: clang-format ────────────────────────────────────────────────────
+  cpp-format:
+    name: C++ — clang-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check formatting (respects .clang-format)
+        run: |
+          find src -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \
+            | xargs clang-format --dry-run --Werror --style=file
+
+  # ── C++: clang-tidy via CMake compile_commands.json ──────────────────────
+  cpp-tidy:
+    name: C++ — clang-tidy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang clang-tidy \
+            libopenmpi-dev openmpi-bin \
+            libomp-dev \
+            libdivsufsort-dev
+
+      - name: Configure CMake (export compile commands)
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_C_COMPILER=clang
+
+      - name: Run clang-tidy on src/
+        run: |
+          find src -name "*.cpp" \
+            | xargs clang-tidy \
+                -p build/compile_commands.json \
+                --warnings-as-errors="*" \
+                --header-filter="src/.*"

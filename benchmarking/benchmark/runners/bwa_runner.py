@@ -56,18 +56,20 @@ def run(
         Dictionary with runtime, memory usage and alignment metrics or
         ``None`` if BWA cannot run.
     """
-    logger = logging.getLogger('bwa_runner')
-    if sequence_type != 'dna':
+    logger = logging.getLogger("bwa_runner")
+    if sequence_type != "dna":
         logger.warning("BWA only supports DNA alignment; skipping run")
         return None
-    if not utils.check_executable('bwa'):
+    if not utils.check_executable("bwa"):
         logger.error("bwa executable not found in PATH; skipping BWA run")
         return None
     # Prepare index prefix
     base_name = os.path.basename(target_path)
     index_prefix = os.path.join(work_dir, f"bwa_index_{base_name}")
     # BWA index produces files with extensions .amb, .ann, .bwt, .pac, .sa
-    index_files = [f"{index_prefix}.{ext}" for ext in ['amb', 'ann', 'bwt', 'pac', 'sa']]
+    index_files = [
+        f"{index_prefix}.{ext}" for ext in ["amb", "ann", "bwt", "pac", "sa"]
+    ]
     index_exists = all(os.path.exists(f) for f in index_files)
     build_cmd = None
     build_runtime = 0.0
@@ -77,38 +79,42 @@ def run(
     build_stderr = ""
     if not index_exists:
         # Build index
-        build_cmd = ['bwa', 'index', '-p', index_prefix, target_path]
-        build_runtime, build_memory, build_exit, build_stdout, build_stderr = utils.run_subprocess_with_resource_tracking(
-            build_cmd, timeout=timeout, capture_output=True
+        build_cmd = ["bwa", "index", "-p", index_prefix, target_path]
+        build_runtime, build_memory, build_exit, build_stdout, build_stderr = (
+            utils.run_subprocess_with_resource_tracking(
+                build_cmd, timeout=timeout, capture_output=True
+            )
         )
         # Write build log
-        with open(log_path, 'w', encoding='utf-8') as logf:
-            logf.write('Command: ' + ' '.join(build_cmd) + '\n')
-            logf.write('Exit code: ' + str(build_exit) + '\n')
-            logf.write('=== STDOUT (index build) ===\n')
-            logf.write(build_stdout + '\n')
-            logf.write('=== STDERR (index build) ===\n')
-            logf.write(build_stderr + '\n')
+        with open(log_path, "w", encoding="utf-8") as logf:
+            logf.write("Command: " + " ".join(build_cmd) + "\n")
+            logf.write("Exit code: " + str(build_exit) + "\n")
+            logf.write("=== STDOUT (index build) ===\n")
+            logf.write(build_stdout + "\n")
+            logf.write("=== STDERR (index build) ===\n")
+            logf.write(build_stderr + "\n")
     # Align
     sam_file = os.path.join(work_dir, f"bwa_{base_name}.sam")
-    align_cmd = ['bwa', 'mem']
+    align_cmd = ["bwa", "mem"]
     if threads and threads > 1:
-        align_cmd += ['-t', str(threads)]
+        align_cmd += ["-t", str(threads)]
     align_cmd += [index_prefix, query_path]
     # bwa mem writes SAM to stdout; we will capture via capture_output True
-    align_runtime, align_memory, align_exit, align_stdout, align_stderr = utils.run_subprocess_with_resource_tracking(
-        align_cmd, timeout=timeout, capture_output=True
+    align_runtime, align_memory, align_exit, align_stdout, align_stderr = (
+        utils.run_subprocess_with_resource_tracking(
+            align_cmd, timeout=timeout, capture_output=True
+        )
     )
     # Write alignment logs
-    with open(log_path, 'a', encoding='utf-8') as logf:
-        logf.write('Command: ' + ' '.join(align_cmd) + '\n')
-        logf.write('Exit code: ' + str(align_exit) + '\n')
-        logf.write('=== STDOUT (alignment) ===\n')
-        logf.write(align_stdout + '\n')
-        logf.write('=== STDERR (alignment) ===\n')
-        logf.write(align_stderr + '\n')
+    with open(log_path, "a", encoding="utf-8") as logf:
+        logf.write("Command: " + " ".join(align_cmd) + "\n")
+        logf.write("Exit code: " + str(align_exit) + "\n")
+        logf.write("=== STDOUT (alignment) ===\n")
+        logf.write(align_stdout + "\n")
+        logf.write("=== STDERR (alignment) ===\n")
+        logf.write(align_stderr + "\n")
     # Write SAM file for parsing
-    with open(sam_file, 'w', encoding='utf-8') as sf:
+    with open(sam_file, "w", encoding="utf-8") as sf:
         sf.write(align_stdout)
     # Parse metrics
     query_lengths = utils.read_fasta_lengths(query_path)
@@ -123,10 +129,12 @@ def run(
     else:
         peak_memory = align_memory
     return {
-        'tool': 'bwa',
-        'command': ' | '.join([' '.join(build_cmd) if build_cmd else '', ' '.join(align_cmd)]).strip(' |'),
-        'exit_code': align_exit,
-        'runtime': total_runtime,
-        'memory': peak_memory,
-        'metrics': metrics,
+        "tool": "bwa",
+        "command": " | ".join(
+            [" ".join(build_cmd) if build_cmd else "", " ".join(align_cmd)]
+        ).strip(" |"),
+        "exit_code": align_exit,
+        "runtime": total_runtime,
+        "memory": peak_memory,
+        "metrics": metrics,
     }

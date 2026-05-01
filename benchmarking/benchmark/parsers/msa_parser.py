@@ -33,15 +33,15 @@ def _read_fasta_sequences(content: str) -> List[Tuple[str, str]]:
         line = line.strip()
         if not line:
             continue
-        if line.startswith('>'):
+        if line.startswith(">"):
             if current_id is not None:
-                seqs.append((current_id, ''.join(current_seq)))
+                seqs.append((current_id, "".join(current_seq)))
             current_id = line[1:].split()[0]
             current_seq = []
         else:
             current_seq.append(line)
     if current_id is not None:
-        seqs.append((current_id, ''.join(current_seq)))
+        seqs.append((current_id, "".join(current_seq)))
     return seqs
 
 
@@ -109,11 +109,11 @@ def parse_aligned_fasta(
     query_aligned_residues = 0
     target_aligned_residues = 0
     for a, b in zip(aligned_query, aligned_target):
-        if a != '-':
+        if a != "-":
             query_aligned_residues += 1
-        if b != '-':
+        if b != "-":
             target_aligned_residues += 1
-        if a == '-' or b == '-':
+        if a == "-" or b == "-":
             gaps += 1
         elif a.upper() == b.upper():
             matches += 1
@@ -121,8 +121,12 @@ def parse_aligned_fasta(
             mismatches += 1
     alignment_length = len(aligned_query)
     identity = (matches / alignment_length * 100.0) if alignment_length > 0 else None
-    query_cov = (query_aligned_residues / query_length * 100.0) if query_length > 0 else None
-    target_cov = (target_aligned_residues / target_length * 100.0) if target_length > 0 else None
+    query_cov = (
+        (query_aligned_residues / query_length * 100.0) if query_length > 0 else None
+    )
+    target_cov = (
+        (target_aligned_residues / target_length * 100.0) if target_length > 0 else None
+    )
     return {
         "identity": identity,
         "alignment_length": float(alignment_length),

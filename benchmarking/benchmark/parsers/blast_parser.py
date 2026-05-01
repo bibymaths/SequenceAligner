@@ -60,7 +60,7 @@ def parse_blast_outfmt6(
             "subject_coverage": None,
         }
     # Pick the first (best) alignment line
-    parts = lines[0].split('\t')
+    parts = lines[0].split("\t")
     # Default BLAST outfmt 6 has 12 fields
     # Ensure at least 12 fields present
     if len(parts) < 12:

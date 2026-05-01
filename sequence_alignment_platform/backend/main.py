@@ -6,7 +6,16 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, Form
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+    Form,
+)
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
@@ -50,7 +59,7 @@ async def serve_frontend():
 
 class AlignmentRequest(BaseModel):
     align_method: str = "global"  # e.g., global, local, lcs
-    seq_type: str = "protein"     # dna or protein
+    seq_type: str = "protein"  # dna or protein
 
 
 class SessionMetadata(BaseModel):
@@ -69,7 +78,9 @@ def create_session_dir() -> Path:
     return session_dir
 
 
-def write_metadata(session_dir: Path, query_file: str, target_file: str, params: dict, status: str) -> SessionMetadata:
+def write_metadata(
+    session_dir: Path, query_file: str, target_file: str, params: dict, status: str
+) -> SessionMetadata:
     metadata = SessionMetadata(
         session_id=session_dir.name,
         timestamp=datetime.utcnow().isoformat(),
@@ -96,16 +107,18 @@ async def update_status(session_dir: Path, status: str) -> None:
 
 @app.post("/align")
 async def align(
-        background_tasks: BackgroundTasks,
-        query: UploadFile = File(...),
-        target: UploadFile = File(...),
-        align_method: str = Form("global"),
-        seq_type: str = Form("dna"),
-        use_seeded_alignment: bool = Form("false")
+    background_tasks: BackgroundTasks,
+    query: UploadFile = File(...),
+    target: UploadFile = File(...),
+    align_method: str = Form("global"),
+    seq_type: str = Form("dna"),
+    use_seeded_alignment: bool = Form("false"),
 ) -> SessionMetadata:
 
     if seq_type not in {"dna", "protein"}:
-        raise HTTPException(status_code=400, detail="Invalid seq_type. Must be 'dna' or 'protein'")
+        raise HTTPException(
+            status_code=400, detail="Invalid seq_type. Must be 'dna' or 'protein'"
+        )
 
     session_dir = create_session_dir()
 
@@ -149,12 +162,16 @@ async def align(
     params = {
         "align_method": align_method,
         "seq_type": seq_type,
-        "use_seeded_alignment": use_seeded_alignment_bool
+        "use_seeded_alignment": use_seeded_alignment_bool,
     }
     logger.info(f"Starting alignment with parameters: {params}")
-    metadata = write_metadata(session_dir, query.filename, target.filename, params, status="queued")
+    metadata = write_metadata(
+        session_dir, query.filename, target.filename, params, status="queued"
+    )
 
-    background_tasks.add_task(run_alignment, session_dir, query_path, target_path, params)
+    background_tasks.add_task(
+        run_alignment, session_dir, query_path, target_path, params
+    )
 
     return metadata
 
@@ -175,7 +192,11 @@ async def list_results(session_id: str) -> JSONResponse:
     session_dir = BASE_DATA_DIR / session_id
     if not session_dir.exists():
         raise HTTPException(status_code=404, detail="Session not found")
-    files = [str(path.relative_to(session_dir)) for path in session_dir.glob("**/*") if path.is_file()]
+    files = [
+        str(path.relative_to(session_dir))
+        for path in session_dir.glob("**/*")
+        if path.is_file()
+    ]
     return JSONResponse({"files": files})
 
 
