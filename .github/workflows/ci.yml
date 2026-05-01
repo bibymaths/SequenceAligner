@@ -58,8 +58,7 @@ jobs:
           sudo apt-get install -y \
             clang clang-tidy \
             libopenmpi-dev openmpi-bin \
-            libomp-dev \
-            libdivsufsort-dev
+            libomp-dev 
 
       - name: Configure CMake (export compile commands)
         run: >

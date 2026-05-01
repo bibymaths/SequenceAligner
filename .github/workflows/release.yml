@@ -32,13 +32,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libopenmpi-dev openmpi-bin \
-            libomp-dev \
-            libdivsufsort-dev
+            libomp-dev
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install llvm libomp open-mpi libdivsufsort
+          brew install llvm libomp open-mpi
           LLVM_PREFIX="$(brew --prefix llvm)"
           LIBOMP_PREFIX="$(brew --prefix libomp)"
           echo "CC=${LLVM_PREFIX}/bin/clang"           >> $GITHUB_ENV
@@ -60,7 +59,6 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER="${LLVM_PREFIX}/bin/clang" \
             -DCMAKE_CXX_COMPILER="${LLVM_PREFIX}/bin/clang++" \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix libdivsufsort);${LIBOMP_PREFIX}" \
             -DCMAKE_EXE_LINKER_FLAGS="-L${LIBOMP_PREFIX}/lib"
 
       - name: Build
