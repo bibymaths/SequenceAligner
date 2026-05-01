@@ -177,7 +177,7 @@ python-dateutil==2.9.0.post0
     #   ghp-import
     #   matplotlib
     #   pandas
-python-multipart==0.0.27
+python-multipart==0.0.26
     # via sequencealigner (pyproject.toml)
 pyyaml==6.0.3
     # via

@@ -21,11 +21,11 @@ dependencies = [
     "tqdm>=4.67.3",
     "scikit-learn>=1.8.0",
     "umap-learn>=0.5.11",
-    "biopython>=1.86",
+    "biopython>=1.87",
     "fastapi>=0.135.1",
     "uvicorn>=0.42.0",
     "pydantic>=2.12.5",
-    "python-multipart>=0.0.22",
+    "python-multipart>=0.0.26",
     "websockets>=16.0",
     "httpx>=0.28.1",
 ]
