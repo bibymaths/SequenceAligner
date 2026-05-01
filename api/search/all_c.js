@@ -1,0 +1,9 @@
+var searchData=
+[
+  ['query_5fchain_5fend_0',['query_chain_end',['../structChainedSeed.html#a26113e411b6e77449b0172638d686a57',1,'ChainedSeed']]],
+  ['query_5fchain_5fstart_1',['query_chain_start',['../structChainedSeed.html#a353637a7c731353d9202bde0c7d1ceb5',1,'ChainedSeed']]],
+  ['query_5fend_2',['query_end',['../structSeed.html#a5bc048100ea3e1d0bb55acd37323bedc',1,'Seed']]],
+  ['query_5fend_5forig_3',['query_end_orig',['../structAlignmentResult.html#a05b1a9df2eddb113624e4faf8fd07e1c',1,'AlignmentResult']]],
+  ['query_5fpos_4',['query_pos',['../structSeed.html#a96cc7d8289af0351c9e0e819e232f1ce',1,'Seed']]],
+  ['query_5fstart_5forig_5',['query_start_orig',['../structAlignmentResult.html#ac5bd7ce7e3b85ff6531a3564a58b1649',1,'AlignmentResult']]]
+];

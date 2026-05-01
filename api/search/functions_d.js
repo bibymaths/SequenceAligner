@@ -1,0 +1,10 @@
+var searchData=
+[
+  ['save_0',['save',['../classFMIndex.html#a8df087522560d2f0c29658e3945b3c9e',1,'FMIndex']]],
+  ['savelcs_1',['savelcs',['../main_8cpp.html#a512dbedfe653e2b7c21fa1806f6f5a1b',1,'saveLCS(const std::string &amp;id, const std::string &amp;lcs_str, std::ostream &amp;os):&#160;main.cpp'],['../main__fmindex_8cpp.html#a4f244f92d877c18c3cae61f0e15d27db',1,'saveLCS(const std::string &amp;id, const std::string &amp;lcs_str_val, std::ostream &amp;os):&#160;main_fmindex.cpp']]],
+  ['saveplainalignment_2',['saveplainalignment',['../main_8cpp.html#a681ee981413b0f107910875929c55e96',1,'savePlainAlignment(const std::string &amp;header1, const std::string &amp;header2, const std::string &amp;aligned1, const std::string &amp;aligned2, std::ostream &amp;os):&#160;main.cpp'],['../main__fmindex_8cpp.html#a1d490f2a8531fe50384ae218d6f99a65',1,'savePlainAlignment(const std::string &amp;h1, const std::string &amp;h2, const std::string &amp;a1, const std::string &amp;a2, std::ostream &amp;os):&#160;main_fmindex.cpp']]],
+  ['score_3',['score',['../main_8cpp.html#a9a8a72b8aa92b79fdf6e5141648d67fa',1,'score(char x, char y, ScoreMode mode):&#160;main.cpp'],['../main__fmindex_8cpp.html#a9a8a72b8aa92b79fdf6e5141648d67fa',1,'score(char x, char y, ScoreMode mode):&#160;main_fmindex.cpp']]],
+  ['showprogressbar_4',['showprogressbar',['../main_8cpp.html#a4289364ed2e2a06fbe0515aec12b0a1d',1,'showProgressBar(int progress, int total):&#160;main.cpp'],['../main__fmindex_8cpp.html#a4289364ed2e2a06fbe0515aec12b0a1d',1,'showProgressBar(int progress, int total):&#160;main_fmindex.cpp']]],
+  ['suffix_5farray_5',['suffix_array',['../fmindex_8cpp.html#a25c4c7c57088f05df17170ea692b53af',1,'fmindex.cpp']]],
+  ['suffix_5farray_5fconstruction_6',['suffix_array_construction',['../main__fmindex_8cpp.html#a8ac8490dc06562895891282119899fad',1,'main_fmindex.cpp']]]
+];
